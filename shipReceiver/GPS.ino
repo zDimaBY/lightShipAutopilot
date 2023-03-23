@@ -13,11 +13,8 @@ void GPSStatys() {
     if (fix.valid.speed ) {
       dataTelem.ch[5] = fix.speed_kph();
     }
-    if (fix.valid.hdop ) {
-      dataTelem.ch[6] = fix.hdop / 10;
-      if (dataTelem.ch[6] > 999) {
-        dataTelem.ch[6] = 999;
-      }
+    if (fix.valid.hdop) {
+      dataTelem.ch[6] = min(fix.hdop / 10, 999); // Використовуємо функцію min() для обмеження значення до 999
     }
     if (fix.valid.satellites ) {
       dataTelem.ch[7] = fix.satellites;

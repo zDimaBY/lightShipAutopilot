@@ -27,14 +27,13 @@ unsigned int timeoutBack = 60000; // інтервал повернення пі�
 unsigned int lastTime = 0;
 
 float volt; //Вольт метр
-float temp = 0.0;
 const float r1 = 101500.0; //опір резистора r1
 const float r2 = 20000.0; // опір резистора r2
 
 byte motorspeed, limitspeed; // Для автопілота
-int delta, conteinerMillis;
+int conteinerMillis;
 unsigned long timeoutAV, timeoutAV1;
-bool GPS_ON = false, target_on = false, is_one1 = false, LORA_TelemetBool = false;
+bool is_one1 = false, LORA_TelemetBool = false;
 
 float DISTANCE_LAT_BUFER = 0, DISTANCE_LNG_BUFER = 0;
 float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
@@ -65,6 +64,47 @@ float calibrated_values[3];
 float scaler;
 boolean scaler_flag = false;
 float normal_vector_length;
+/*
+  const int Kp = 200;
+  const byte Ki = 1;
+  const int Kd = 800;
+
+  const int Kp = 100; // 50ms
+  const float Ki = 0.5;
+  const int Kd = 800;
+*/
+// PID constants
+const int Kp = 150;
+const float Ki = 0.5;
+const int Kd = 50;
+
+// variables
+int error, previous_error = 0;
+int integral = 0, derivative;
+
+void debugPID(int output) {
+  Serial.print("error: ");
+  Serial.print(error);
+  Serial.print(" integral: ");
+  Serial.print(integral);
+  Serial.print(" derivative: ");
+  Serial.print(derivative);
+  Serial.print(" output: ");
+  Serial.println(output);
+}
+void turnservo() {
+  error = 10 - dataTelem.ch[4];//розрахування помилки
+
+  // вираховуєм PID output
+  integral += error*30;
+  integral = constrain(integral, -600, 600);
+  derivative = error - previous_error;
+  int output = (Kp * error + Ki * integral + Kd * derivative) / 100;
+
+  servo1.write(map(constrain(80 - output, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));// update servo position
+  debugPID(output);
+  previous_error = error;// update previous error
+}
 
 void setup() {
   servo1.attach(3);
@@ -76,7 +116,7 @@ void setup() {
   servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
   servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
   servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-  Serial.begin(9600); //відкриваємо порт для зв'язку з ПК
+  Serial.begin(115200); //відкриваємо порт для зв'язку з ПК
   SerialGPS.begin(38400); //відкриваємо порт для зв'язку з GPS
   compass.begin();
   compass.setRange(HMC5883L_RANGE_1_3GA);
@@ -212,13 +252,9 @@ void logikWing() {
 }
 
 void voltmeter() {
-  temp = (analogRead(A0) * 5.0) / 1024.0; // формула для конвертування значення напруги
-  volt = temp / (r2 / (r1 + r2));
+  float volt = (analogRead(A0) * 5.0) / 1024.0 * (r1 + r2) / r2; // оптимізована формула для конвертування значення напруги
   dataTelem.ch[0] = volt;
-  String VoltString = "";
-  byte iptr;
-  volt = modf(volt, iptr);
-  VoltString.concat(volt);
+  String VoltString = String(volt, 2); // оптимізований код для отримання рядкового значення напруги з двома знаками після коми
   VoltString.remove(0, 2);
   dataTelem.ch[8] = VoltString.toInt();
 }
@@ -243,21 +279,12 @@ void SpeedMotor() {
     }
   }
 }
-void turnservo() {
-  int directionShip = getDirectionShip(dataTelem.ch[4], dataTelem.ch[3]); //dataTelem.ch[4] - курс з цифрового компасу, dataTelem.ch[3] - курс який потрібно тримати, dataTelem.ch[1] - GPS курс
-  if (directionShip == 0) {
-    //Serial.println("Ми йдемо прямо за курсом! Поворот не потрібний!");
-  } else if (directionShip == -1) {
-    servo1.write(map(constrain(80 + delta, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-  } else if (directionShip == 1) {
-    servo1.write(map(constrain(80 - delta, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-  }
-}
+
 void gpsav() {
-  GPS_ON = false, target_on = false, is_one1 = false;
+  is_one1 = false;
   while (flag) {
     GPSStatys(); // (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - азимут, dataTelem.ch[5] - КМ/год (GPS може видавати дані 1 раз на секунду)
-    if (millis() - timeoutAV >= 50) { // затримка в 50ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
+    if (millis() - timeoutAV >= 100) { // затримка в 50ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
       timeoutAV = millis();
       StatCompass();
       turnservo();
@@ -269,7 +296,7 @@ void gpsav() {
       motorspeed = 0; // Обнулюємо змінну двигуна
       return;
     }
-    if (dataTelem.ch[2] < 2) { // Якщо дистанція менше 2м відключаємо цикл
+    if (dataTelem.ch[2] < -2) { // Якщо дистанція менше 2м відключаємо цикл
       if (is_one1) { // якщо прапор істина
         flag = false; // закриємо цикл функції
         motorspeed = 0; // обнулюємо зміну оборотів
@@ -311,13 +338,4 @@ void gpsav() {
       SpeedMotor(); // виклик фун. оборотів двигуна.
     }
   }
-}
-int getDirectionShip(int shipAzimuth, int targetAzimuth) { // функція повороту
-  delta = abs(shipAzimuth - targetAzimuth);
-  if (delta == 0 | delta == 360)
-    return 0;
-  if (shipAzimuth > targetAzimuth)
-    return delta >= 180 ? 1 : -1;
-  else
-    return delta >= 180 ? -1 : 1;
 }

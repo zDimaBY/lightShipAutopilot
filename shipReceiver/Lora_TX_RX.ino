@@ -33,23 +33,19 @@ void LORA_SEND() {
 void onReceive(int packetSize) {
   LoRa.readBytes((uint8_t *)&dataControl, packetSize);
   byte crcc = crc16_asm((byte*)&dataControl, sizeof(dataControl)); // Считуємо crc посилки повністю
-  if (crcc == 0) {
-    if (dataControl.ch[9] != 205) { // якщо одержувач не це пристрій або трансляція,
-      //Serial.println("Надійшло повідомлення, але не для мене.");
-      return; //пропустити решту функції
-    }
-    FOR_i(0, 10) {
-      ControlCH[i] = dataControl.ch[i];
-    }
+  if (crcc == 0 && dataControl.ch[9] == 205) {
+    memcpy(ControlCH, dataControl.ch, sizeof(ControlCH)); // Копіювання даних з dataControl.ch в ControlCH
     lastTime = millis();
-    if (flag == false ) {
+    if (!flag) {
       motor.write(map(ControlCH[0], 0, 255, 800, 2550));
       servo1.write(map(ControlCH[1], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
+
     if (ControlCH[5] != 1) {
       servo2.write(map(ControlCH[2], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(ControlCH[3], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
+
     LORA_TelemetBool = true;
     countLoraRead++;
   }
