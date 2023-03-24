@@ -1,35 +1,42 @@
+/*
+  Скетч використовує 20762 байтів (67%) місця зберігання для програм. Межа 30720 байтів.
+  Глобальні змінні використовують 994 байтів (48%) динамічної пам’яті,  залишаючи 1054 байтів для локальних змінних. Межа 2048 байтів. 24.02.2023
+
+*/
+
 #define FOR_i(from, to) for (int i = (from); i < (to); i++)
 
 #define GPS_SERIAL_PORT_NAME "AltSoftSerial"
+#define MIDDLE_PULSE_WIDTH 1800
 
-#include <SPI.h>  // Підключаємо бібліотеку для роботи з SPI-інтерфейсом
-#include <LoRa.h>
-#include <avr/eeprom.h> // Енергонезалежна пам'ять
-#include <NMEAGPS.h> // (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - азимут, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
-#include <GPSport.h>//Бібліотека GPSport.h є частиною бібліотеки NeoGPS і містить класи та функції для роботи з різними типами портів, такими як послідовний порт (Serial), SoftwareSerial, AltSoftSerial та HardwareSerial.
-#include <ServoTimer2.h>
-#include <AltSoftSerial.h> //Підключений GPS
-#include <Wire.h> //для QMC5883
-#include <DFRobot_QMC5883.h>
+#include <SPI.h> // Підключаємо бібліотеку для роботи з SPI-інтерфейсом
+#include <LoRa.h> // Підключаємо бібліотеку для роботи з модулем LoRa
+#include <avr/eeprom.h> // Підключаємо бібліотеку для роботи з енергонезалежною пам'яттю
+#include <NMEAGPS.h> // Підключаємо бібліотеку для роботи з GPS-модулем (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - заданий курс, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
+#include <GPSport.h>// Підключаємо бібліотеку для роботи з GPS-модулем (містить класи та функції для роботи з різними типами портів, такими як послідовний порт (Serial), SoftwareSerial, AltSoftSerial та HardwareSerial)
+#include <ServoTimer2.h> // Підключаємо бібліотеку для роботи з сервоприводами
+#include <AltSoftSerial.h> // Підключаємо бібліотеку для роботи з AltSoftSerial (порт для GPS)
+#include <Wire.h> // Підключаємо бібліотеку для роботи з I2C-протоколом
+#include <DFRobot_QMC5883.h> // Підключаємо бібліотеку для роботи з магнітним датчиком
 
-ServoTimer2 motor;
+ServoTimer2 motor; // Створюємо об'єкти для керування сервомоторами
 ServoTimer2 servo1;
 ServoTimer2 servo2;
 ServoTimer2 servo3;
-NMEAGPS gps;
-DFRobot_QMC5883 compass;
+NMEAGPS gps; // Створюємо об'єкт для роботи з GPS-модулем
+DFRobot_QMC5883 compass; // Створюємо об'єкт для роботи з магнітним датчиком
 
 AltSoftSerial SerialGPS(8, 9);
 
 unsigned int communicationTimeout = 500; // інтервал розриву зв'язку
 unsigned int returnTimeout = 60000; // інтервал повернення після розриву зв'язку
-unsigned int lastCommunicationTime = 0;
+unsigned int lastCommunicationTime;
 
 float voltage; //Вольт метр
 const float r1 = 101500.0; //опір резистора r1
 const float r2 = 20000.0; // опір резистора r2
 
-byte motorSpeed, limitspeed; // Для автопілота
+byte motorSpeed, limitSpeed; // Для автопілота
 unsigned long autopilotTimeout;
 bool loraTelemetryBoolean = false;
 bool whileLoop = false;
@@ -37,7 +44,7 @@ bool whileLoop = false;
 float DISTANCE_LAT_BUFER = 0, DISTANCE_LNG_BUFER = 0;
 float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
 
-unsigned long timeoutStat, timeoutBeginPacket, countLoop;
+unsigned long timeoutStat, timeoutBeginPacket, countLoop; // Створюєм змінні для debagStat()
 byte countLoraRead, countLoraSend;
 
 struct TX_DATA {
@@ -83,18 +90,15 @@ void debugPIDOutput(int output) {
   Serial.print(" output: ");
   Serial.println(output);
 }
-void turnServo() {
+void turnServo() {//Функція turnServo() виконує поворот сервоприводу за допомогою розрахунку помилки та PID-контролера.
   error = dataTelem.ch[3] - dataTelem.ch[4];//розрахування помилки
-
-  // вираховуєм PID output
-  integral += error * 10;
+  integral += error * 10;// Обчислення інтегральної складової з контролем переповнення
   integral = constrain(integral, -600, 600);
-  derivative = error - previous_error;
-  int output = (Kp * error + Ki * integral + Kd * derivative) / 100;
 
-  servo1.write(map(constrain(80 - output, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));// update servo position
-  //debugPIDOutput(output);
-  previous_error = error;// update previous error
+  derivative = error - previous_error;// Обчислення похідної складової
+  int output = (Kp * error + Ki * integral + Kd * derivative) / 100;// Обчислення вихідного сигналу з ПІД-регулятора
+  servo1.write(map(constrain(80 - output, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));// Обмеження вихідного сигналу і запис значення на сервопривід
+  previous_error = error;// Запис поточної помилки для використання як попередньої при наступному виклику функції
 }
 
 void setup() {
@@ -125,7 +129,7 @@ void setup() {
   LoRa.setSyncWord(0x44);
   motor.write(2250);
   delay(7000);
-  motor.write(1800);
+  motor.write(MIDDLE_PULSE_WIDTH);
   delay(3000);
 
 }
@@ -148,7 +152,7 @@ void debagStat() {
 }
 void loop() {
   GPSStatys();
-  if (millis() - autopilotTimeout >= 200) { // затримка в 200ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
+  if (millis() - autopilotTimeout >= 200) { // затримка в 200ms (надто велика швидкість компаса, ардуїнці (NANO) складно ловити пакети з GPS)
     autopilotTimeout = millis();
     StatCompass();
     voltmeter();
@@ -239,29 +243,32 @@ void voltmeter() {
 }
 
 void SpeedMotor() {
-  const uint32_t interval = 300; // інтервал в мілісекундах
-  static uint32_t previousMillis = 0;
+
+  const int interval = 200; // інтервал в мілісекундах
+  static uint32_t previousMillis;
   uint32_t currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
     int targetSpeed = 0;
     if (dataTelem.ch[2] > 15) {
-      targetSpeed = limitspeed + int(controlChannel[6]);
+      targetSpeed = limitSpeed + controlChannel[6];
     } else {
-      targetSpeed = 19 + int(controlChannel[6]);
+      targetSpeed = limitSpeed;
     }
     if (motorSpeed < targetSpeed) {
       motorSpeed++;
     } else if (motorSpeed > targetSpeed) {
       motorSpeed--;
     }
-    motor.write(map(motorSpeed, 0, 255, 1800, 2550));
+    motor.write(map(motorSpeed, 0, 255, MIDDLE_PULSE_WIDTH, 2550));
   }
 }
 
 void gpsav() {
+  limitSpeed = 20; // змінити ліміт обертів SpeedMotor();
   float homeCoordinatesLat = eeprom_read_float(0), homeCoordinatesLng = eeprom_read_float(4);// читаємо по байтах координати з енергонезалежної пам'яті
   int containerMillis, flipContainersL = 180, flipContainersR = 0;
+  byte nextWork = 0;
   whileLoop = true;
   while (1) {
     //debagStat();
@@ -275,46 +282,47 @@ void gpsav() {
     LORA_Telem();//Якщо дані прийшли, то відправимо телеметрію
     if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
       whileLoop = false;
-      motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+      motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
       break;// закриємо цикл функції, припинемо виконувати код далі
     }
-    if (dataTelem.ch[2] < -2) { // Якщо дистанція менше 2м вимикаємо функцію
+    if (dataTelem.ch[2] < 2) { // Якщо дистанція менше 2м вимикаємо функцію
       if (!whileLoop) { // якщо прапор false
         whileLoop = false;
-        motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+        motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
         break;// закриємо цикл функції, припинемо виконувати код далі
       }
       if (controlChannel[5] == 1) { // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку.)
-        DISTANCE_LAT = homeCoordinatesLat; // читаємо координати з енергонезалежної пам'яті
-        DISTANCE_LNG = homeCoordinatesLng;
-        GPSStatys(); //Оновити геопозицію
         containerMillis = 600;
-        if (DISTANCE_LAT != eeprom_read_float(0)) {
+        if (DISTANCE_LAT != eeprom_read_float(0) && distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, homeCoordinatesLat, homeCoordinatesLng) > 6) {
           while (containerMillis > 1) {
             if (millis() - autopilotTimeout >= 4) {
               autopilotTimeout = millis();
               containerMillis--;
-              flipContainersL--;
-              flipContainersR++;
-              servo2.write(map(constrain(flipContainersL, 30, 180), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-              servo3.write(map(constrain(flipContainersR, 0, 150), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+              servo2.write(map(constrain(flipContainersL--, 30, 180), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+              servo3.write(map(constrain(flipContainersR++, 0, 150), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
             }
             RTH();
             if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
               whileLoop = false;
-              motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+              motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
               break;// закриємо цикл функції, припинемо виконувати код далі
             }
           }
+        }
+        nextWork++;
+        servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+        servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+        DISTANCE_LAT = homeCoordinatesLat; // читаємо координати з енергонезалежної пам'яті
+        DISTANCE_LNG = homeCoordinatesLng;
+        dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); //Оновити відстаннь
+        if (nextWork == 2) { // вимкнути при 2 циклі
+          whileLoop = false; // відключаємо цикл while
         }
       } else { // Якщо controlChannel[5] != 1
         whileLoop = false; // відключаємо цикл while
       }
     } else {
-      servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-      servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-      limitspeed = 20; // змінити ліміт обертів SpeedMotor();
-      //SpeedMotor(); // виклик функції оборотів двигуна
+      SpeedMotor(); // виклик функції оборотів двигуна
     }
   }
 }

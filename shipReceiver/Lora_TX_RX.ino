@@ -14,7 +14,7 @@ void RTH() {
     timeoutBeginPacket = millis();
     unsigned int dt = millis() - lastCommunicationTime;
     if (dt >= communicationTimeout) {
-      motor.write(1800);
+      motor.write(MIDDLE_PULSE_WIDTH);
       servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
@@ -27,27 +27,26 @@ void RTH() {
   }
 }
 
-void onReceive(int packetSize) {
-  LoRa.readBytes((uint8_t *)&dataControl, packetSize);
-  byte crcc = crc16_asm((byte*)&dataControl, sizeof(dataControl)); // Считуємо crc посилки повністю
-  if (crcc == 0 && dataControl.ch[9] == 205) {// якщо CRC вірне та наша трансляція
-    memcpy(controlChannel, dataControl.ch, sizeof(controlChannel)); // Копіювання даних з dataControl.ch в controlChannel
-    lastCommunicationTime = millis();// перевірка на втрату звязку
-    if (!whileLoop) { // якщо прапор false, дозволяєм керувати катером
+void onReceive(int packetSize) {// Функція onReceive приймає параметр packetSize, який вказує на розмір пакету.
+  LoRa.readBytes((uint8_t *)&dataControl, packetSize); //читає цілі байти з LoRa-модуля та записує їх у змінну dataControl
+  byte crcc = crc16_asm((byte*)&dataControl, sizeof(dataControl)); // Обчислюємо контрольну суму (CRC) для отриманих даних
+  if (crcc == 0 && dataControl.ch[9] == 205) { // Перевіряємо правильність CRC та перевіряємо, чи це наша трансляція
+    memcpy(controlChannel, dataControl.ch, sizeof(controlChannel)); // Копіюємо дані з dataControl.ch у controlChannel
+    lastCommunicationTime = millis(); // Зберігаємо час останньої комунікації
+    if (!whileLoop) { // Якщо whileLoop == false, дозволяємо керувати катером
       motor.write(map(controlChannel[0], 0, 255, 800, 2550));
       servo1.write(map(controlChannel[1], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
-    if (controlChannel[5] != 1) { // якщо controlChannel[5] = 0, дозволяєм перекидати контейнери
+    if (controlChannel[5] != 1) { // Якщо controlChannel[5] = 0, дозволяємо перекидати контейнери
       servo2.write(map(controlChannel[2], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(controlChannel[3], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
-
-    loraTelemetryBoolean = true;// дозволяєм відправити телеметрію
-    countLoraRead++;
+    loraTelemetryBoolean = true; // Дозволяємо відправляти телеметрію
+    countLoraRead++; // Збільшуємо лічильник отриманих пакетів
   }
 }
 //ФУНКЦІЯ CRC шифрування ________________________________
-byte crc16_asm(byte *buffer, byte size) {
+byte crc16_asm(byte * buffer, byte size) {
   byte crc = 0;
   for (byte i = 0; i < size; i++) {
     byte data = buffer[i];

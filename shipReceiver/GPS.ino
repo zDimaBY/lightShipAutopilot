@@ -4,7 +4,7 @@ void GPSStatys() {
     if (fix.valid.location ) {// Коли у нас є місце розташування, обчислюємо.
       DISTANCE_LAT_BUFER = fix.latitude();
       DISTANCE_LNG_BUFER = fix.longitude();
-      dataTelem.ch[2] = distanceBetween(fix.latitude(), fix.longitude(), DISTANCE_LAT, DISTANCE_LNG);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG);
       dataTelem.ch[3] = courseTo(fix.latitude(), fix.longitude(), DISTANCE_LAT, DISTANCE_LNG);
     }
     if (fix.valid.heading ) {
