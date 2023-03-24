@@ -1,5 +1,5 @@
 void GPSStatys() {
-  while (gps.available(gpsPort)) {
+  if (gps.available(gpsPort)) {
     gps_fix fix = gps.read(); //Робота з GPS
     if (fix.valid.location ) {// Коли у нас є місце розташування, обчислюємо.
       DISTANCE_LAT_BUFER = fix.latitude();

@@ -1,27 +1,27 @@
 void getHeading() {
   Vector mag = compass.readRaw();
-  xv = mag.XAxis;
-  yv = mag.YAxis;
-  zv = mag.ZAxis;
+  xValue = mag.XAxis;
+  yValue = mag.YAxis;
+  zValue = mag.ZAxis;
 }
 void StatCompass() {
   float values_from_magnetometer[3];
   getHeading(); //Читаєм компас
-  values_from_magnetometer[0] = xv;
-  values_from_magnetometer[1] = yv;
-  values_from_magnetometer[2] = zv;
+  values_from_magnetometer[0] = xValue;
+  values_from_magnetometer[1] = yValue;
+  values_from_magnetometer[2] = zValue;
   transformation(values_from_magnetometer); // корекції даних магнітометра
   vector_length_stabilasation(); // стабілізації довжини вектора магнітометра (стабілізації радіуса сфери)
 
   /*Serial.flush();
-    Serial.print(calibrated_values[0]);
+    Serial.print(calibratedValues[0]);
     Serial.print(",");
-    Serial.print(calibrated_values[1]);
+    Serial.print(calibratedValues[1]);
     Serial.print(",");
-    Serial.print(calibrated_values[2]);
+    Serial.print(calibratedValues[2]);
     Serial.println();*/
 
-  float heading = atan2(calibrated_values[1], calibrated_values[0]);// Розрахувати заголовок
+  float heading = atan2(calibratedValues[1], calibratedValues[0]);// Розрахувати заголовок
   // Встановити кут відхилення для вашого місця розташування та зафіксувати курс
   // Ви можете знайти своє відхилення на: http://magnetic-declination.com/
   // (+) Позитивний або (-) для негативного
@@ -46,7 +46,7 @@ void StatCompass() {
     Serial.print(dataTelem.ch[4]);
     Serial.println();*/
 }
-void transformation(float uncalibrated_values[3]) {
+void transformation(float uncalibratedValues[3]) {
   //calibration_matrix[3][3] це є матрицею перетворення
   //replace M11, M12,..,M33 з вашими даними матриці перетворення
   double calibration_matrix[3][3] = {
@@ -62,22 +62,22 @@ void transformation(float uncalibrated_values[3]) {
     526.645
   };
   //calculation
-  for (int i = 0; i < 3; ++i) uncalibrated_values[i] = uncalibrated_values[i] - bias[i];
+  for (int i = 0; i < 3; ++i) uncalibratedValues[i] = uncalibratedValues[i] - bias[i];
   float result[3] = {0, 0, 0};
   for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j)
-      result[i] += calibration_matrix[i][j] * uncalibrated_values[j];
-  for (int i = 0; i < 3; ++i) calibrated_values[i] = result[i];
+      result[i] += calibration_matrix[i][j] * uncalibratedValues[j];
+  for (int i = 0; i < 3; ++i) calibratedValues[i] = result[i];
 }
 void vector_length_stabilasation() { //обчислити нормальну довжину вектора
-  if (scaler_flag == false) {
+  if (scalerFlag == false) {
     getHeading();
-    normal_vector_length = sqrt(calibrated_values[0] * calibrated_values[0] + calibrated_values[1] * calibrated_values[1] + calibrated_values[2] * calibrated_values[2]);
-    scaler_flag = true;
+    normal_vector_length = sqrt(calibratedValues[0] * calibratedValues[0] + calibratedValues[1] * calibratedValues[1] + calibratedValues[2] * calibratedValues[2]);
+    scalerFlag = true;
   } //обчислити поточний масштабувальник
-  scaler = normal_vector_length / sqrt(calibrated_values[0] * calibrated_values[0] + calibrated_values[1] * calibrated_values[1] + calibrated_values[2] * calibrated_values[2]);
-  //застосувати поточний масштабувальник до каліброваних координат (глобальний масив calibrated_values)
-  calibrated_values[0] = calibrated_values[0] * scaler;
-  calibrated_values[1] = calibrated_values[1] * scaler;
-  calibrated_values[2] = calibrated_values[2] * scaler;
+  scalerValue = normal_vector_length / sqrt(calibratedValues[0] * calibratedValues[0] + calibratedValues[1] * calibratedValues[1] + calibratedValues[2] * calibratedValues[2]);
+  //застосувати поточний масштабувальник до каліброваних координат (глобальний масив calibratedValues)
+  calibratedValues[0] = calibratedValues[0] * scalerValue;
+  calibratedValues[1] = calibratedValues[1] * scalerValue;
+  calibratedValues[2] = calibratedValues[2] * scalerValue;
 }

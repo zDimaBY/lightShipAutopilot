@@ -1,11 +1,11 @@
 #define FOR_i(from, to) for (int i = (from); i < (to); i++)
 
-#define GPS_PORT_NAME "AltSoftSerial"
+#define GPS_SERIAL_PORT_NAME "AltSoftSerial"
 
 #include <SPI.h>  // Підключаємо бібліотеку для роботи з SPI-інтерфейсом
 #include <LoRa.h>
 #include <avr/eeprom.h> // Енергонезалежна пам'ять
-#include <NMEAGPS.h> // (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - азимут, dataTelem.ch[5] - КМ/год (GPS може видавати дані 1 раз на секунду)
+#include <NMEAGPS.h> // (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - азимут, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
 #include <GPSport.h>//Бібліотека GPSport.h є частиною бібліотеки NeoGPS і містить класи та функції для роботи з різними типами портів, такими як послідовний порт (Serial), SoftwareSerial, AltSoftSerial та HardwareSerial.
 #include <ServoTimer2.h>
 #include <AltSoftSerial.h> //Підключений GPS
@@ -20,20 +20,19 @@ NMEAGPS gps;
 DFRobot_QMC5883 compass;
 
 AltSoftSerial SerialGPS(8, 9);
-bool flag = false;
 
-unsigned int timeout = 500; // інтервал розриву зв'язку
-unsigned int timeoutBack = 60000; // інтервал повернення після розриву зв'язку
-unsigned int lastTime = 0;
+unsigned int communicationTimeout = 500; // інтервал розриву зв'язку
+unsigned int returnTimeout = 60000; // інтервал повернення після розриву зв'язку
+unsigned int lastCommunicationTime = 0;
 
-float volt; //Вольт метр
+float voltage; //Вольт метр
 const float r1 = 101500.0; //опір резистора r1
 const float r2 = 20000.0; // опір резистора r2
 
-byte motorspeed, limitspeed; // Для автопілота
-int conteinerMillis;
-unsigned long timeoutAV, timeoutAV1;
-bool is_one1 = false, LORA_TelemetBool = false;
+byte motorSpeed, limitspeed; // Для автопілота
+unsigned long autopilotTimeout;
+bool loraTelemetryBoolean = false;
+bool whileLoop = false;
 
 float DISTANCE_LAT_BUFER = 0, DISTANCE_LNG_BUFER = 0;
 float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
@@ -51,38 +50,30 @@ struct RX_DATA {
   byte CRC;
 } dataTelem;
 
-byte ControlCH[16];
+byte controlChannel[16];
 
-float xv, yv, zv; //-------------------- КОМПАС!!!
-//calibrated_values[3] це глобальний масив, куди будуть розміщені калібровані дані
-//calibrated_values[3]: [0]=Xc, [1]=Yc, [2]=Zc
-float calibrated_values[3];
-//transformation(float uncalibrated_values[3]) це функція корекції даних магнітометра
-//uncalibrated_values[3] це масив даних некаліброваного магнітометра
-//uncalibrated_values[3]: [0]=Xnc, [1]=Ync, [2]=Znc
+float xValue, yValue, zValue; //-------------------- КОМПАС!!!
+//calibratedValues[3] це глобальний масив, куди будуть розміщені калібровані дані
+//calibratedValues[3]: [0]=Xc, [1]=Yc, [2]=Zc
+float calibratedValues[3];
+//transformation(float uncalibratedValues[3]) це функція корекції даних магнітометра
+//uncalibratedValues[3] це масив даних некаліброваного магнітометра
+//uncalibratedValues[3]: [0]=Xnc, [1]=Ync, [2]=Znc
 //vector_length_stabilasation() - – функція стабілізації довжини вектора магнітометра (стабілізації радіуса сфери)
-float scaler;
-boolean scaler_flag = false;
+float scalerValue;
+boolean scalerFlag = false;
 float normal_vector_length;
-/*
-  const int Kp = 200;
-  const byte Ki = 1;
-  const int Kd = 800;
 
-  const int Kp = 100; // 50ms
-  const float Ki = 0.5;
-  const int Kd = 800;
-*/
 // PID constants
-const int Kp = 150;
-const float Ki = 0.5;
-const int Kd = 50;
+const int Kp = 100;
+const float Ki = 0.2;
+const int Kd = 400;
 
 // variables
 int error, previous_error = 0;
 int integral = 0, derivative;
 
-void debugPID(int output) {
+void debugPIDOutput(int output) {
   Serial.print("error: ");
   Serial.print(error);
   Serial.print(" integral: ");
@@ -92,17 +83,17 @@ void debugPID(int output) {
   Serial.print(" output: ");
   Serial.println(output);
 }
-void turnservo() {
-  error = 10 - dataTelem.ch[4];//розрахування помилки
+void turnServo() {
+  error = dataTelem.ch[3] - dataTelem.ch[4];//розрахування помилки
 
   // вираховуєм PID output
-  integral += error*30;
+  integral += error * 10;
   integral = constrain(integral, -600, 600);
   derivative = error - previous_error;
   int output = (Kp * error + Ki * integral + Kd * derivative) / 100;
 
   servo1.write(map(constrain(80 - output, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));// update servo position
-  debugPID(output);
+  //debugPIDOutput(output);
   previous_error = error;// update previous error
 }
 
@@ -141,8 +132,8 @@ void setup() {
 void debagStat() {
   if (millis() - timeoutStat >= 1000) {
     timeoutStat = millis();
-    Serial.print(" byte: ");
-    Serial.print(ControlCH[0]);
+    Serial.print("byte: ");
+    Serial.print(controlChannel[0]);
     Serial.print(" loop/с: ");
     Serial.print(countLoop);
     Serial.print(" LoraSend/с: ");
@@ -157,94 +148,81 @@ void debagStat() {
 }
 void loop() {
   GPSStatys();
-  if (millis() - timeoutAV >= 200) { // затримка в 50ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
-    timeoutAV = millis();
+  if (millis() - autopilotTimeout >= 200) { // затримка в 200ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
+    autopilotTimeout = millis();
     StatCompass();
     voltmeter();
   }
   //debagStat();
-  LORA_SEND();
+  RTH();
   LORA_Telem();
-  if (ControlCH[4] == 1) {
-    DISTANCE_LAT = eeprom_read_float(0);
-    DISTANCE_LNG = eeprom_read_float(4);
-    flag = true;
-    gpsav();
+  switch (controlChannel[4]) {
+    case 1:
+      DISTANCE_LAT = eeprom_read_float(0);
+      DISTANCE_LNG = eeprom_read_float(4);
+      gpsav();
+      break;
+    case 2:
+      eeprom_write_float(0, DISTANCE_LAT_BUFER);
+      eeprom_write_float(4, DISTANCE_LNG_BUFER);
+      break;
+    case 3:
+      DISTANCE_LAT = eeprom_read_float(8);
+      DISTANCE_LNG = eeprom_read_float(12);
+      gpsav();
+      break;
+    case 4:
+      eeprom_write_float(8, DISTANCE_LAT_BUFER);
+      eeprom_write_float(12, DISTANCE_LNG_BUFER);
+      break;
+    case 5:
+      DISTANCE_LAT = eeprom_read_float(16);
+      DISTANCE_LNG = eeprom_read_float(20);
+      gpsav();
+      break;
+    case 6:
+      eeprom_write_float(16, DISTANCE_LAT_BUFER);
+      eeprom_write_float(20, DISTANCE_LNG_BUFER);
+      break;
+    case 7:
+      DISTANCE_LAT = eeprom_read_float(24);
+      DISTANCE_LNG = eeprom_read_float(28);
+      gpsav();
+      break;
+    case 8:
+      eeprom_write_float(24, DISTANCE_LAT_BUFER);
+      eeprom_write_float(28, DISTANCE_LNG_BUFER);
+      break;
+    case 9:
+      DISTANCE_LAT = eeprom_read_float(32);
+      DISTANCE_LNG = eeprom_read_float(36);
+      gpsav();
+      break;
+    case 10:
+      eeprom_write_float(32, DISTANCE_LAT_BUFER);
+      eeprom_write_float(36, DISTANCE_LNG_BUFER);
+      break;
+    case 11:
+      DISTANCE_LAT = eeprom_read_float(40);
+      DISTANCE_LNG = eeprom_read_float(44);
+      gpsav();
+      break;
+    case 12:
+      eeprom_write_float(40, DISTANCE_LAT_BUFER);
+      eeprom_write_float(44, DISTANCE_LNG_BUFER);
+      break;
+    case 13:
+      DISTANCE_LAT = eeprom_read_float(48);
+      DISTANCE_LNG = eeprom_read_float(52);
+      gpsav();
+      break;
+    case 14:
+      eeprom_write_float(48, DISTANCE_LAT_BUFER);
+      eeprom_write_float(52, DISTANCE_LNG_BUFER);
+      break;
   }
-  if (ControlCH[4] == 2) {
-    eeprom_write_float(0, DISTANCE_LAT_BUFER);
-    eeprom_write_float(4, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 3) {
-    DISTANCE_LAT = eeprom_read_float(8);
-    DISTANCE_LNG = eeprom_read_float(12);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 4) {
-    eeprom_write_float(8, DISTANCE_LAT_BUFER);
-    eeprom_write_float(12, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 5) {
-    DISTANCE_LAT = eeprom_read_float(16);
-    DISTANCE_LNG = eeprom_read_float(20);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 6) {
-    eeprom_write_float(16, DISTANCE_LAT_BUFER);
-    eeprom_write_float(20, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 7) {
-    DISTANCE_LAT = eeprom_read_float(24);
-    DISTANCE_LNG = eeprom_read_float(28);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 8) {
-    eeprom_write_float(24, DISTANCE_LAT_BUFER);
-    eeprom_write_float(28, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 9) {
-    DISTANCE_LAT = eeprom_read_float(32);
-    DISTANCE_LNG = eeprom_read_float(36);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 10) {
-    eeprom_write_float(32, DISTANCE_LAT_BUFER);
-    eeprom_write_float(36, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 11) {
-    DISTANCE_LAT = eeprom_read_float(40);
-    DISTANCE_LNG = eeprom_read_float(44);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 12) {
-    eeprom_write_float(40, DISTANCE_LAT_BUFER);
-    eeprom_write_float(44, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[4] == 13) {
-    DISTANCE_LAT = eeprom_read_float(48);
-    DISTANCE_LNG = eeprom_read_float(52);
-    flag = true;
-    gpsav();
-  }
-  if (ControlCH[4] == 14) {
-    eeprom_write_float(48, DISTANCE_LAT_BUFER);
-    eeprom_write_float(52, DISTANCE_LNG_BUFER);
-  }
-  if (ControlCH[7] > 0) {
-    digitalWrite(A1, LOW); // розмикаємо реле
-  } else {
-    digitalWrite(A1, HIGH); // замикаємо реле
-  }
-  if (ControlCH[8] > 0) {
-    digitalWrite(A2, LOW); // розмикаємо реле
-  } else {
-    digitalWrite(A2, HIGH); // замикаємо реле
-  }
+  digitalWrite(A1, controlChannel[7] > 0 ? LOW : HIGH);
+  digitalWrite(A2, controlChannel[8] > 0 ? LOW : HIGH);
 }
 void logikWing() {
   dataTelem.ch[9] = 210;
@@ -252,90 +230,91 @@ void logikWing() {
 }
 
 void voltmeter() {
-  float volt = (analogRead(A0) * 5.0) / 1024.0 * (r1 + r2) / r2; // оптимізована формула для конвертування значення напруги
-  dataTelem.ch[0] = volt;
-  String VoltString = String(volt, 2); // оптимізований код для отримання рядкового значення напруги з двома знаками після коми
-  VoltString.remove(0, 2);
-  dataTelem.ch[8] = VoltString.toInt();
+  float voltage = (analogRead(A0) * 5.0) / 1024.0 / (r2 / (r1 + r2));
+  dataTelem.ch[0] = voltage;
+  double integerPart;
+  double decimalPart = modf(voltage, &integerPart);
+  int decimalValue = decimalPart * 100;
+  dataTelem.ch[8] = decimalValue;
 }
 
 void SpeedMotor() {
-  if (millis() - timeoutAV1 >= 300) {
-    timeoutAV1 = millis();
+  const uint32_t interval = 300; // інтервал в мілісекундах
+  static uint32_t previousMillis = 0;
+  uint32_t currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    int targetSpeed = 0;
     if (dataTelem.ch[2] > 15) {
-      motorspeed++;
-      if (motorspeed > limitspeed + int(ControlCH[6])) {
-        motorspeed--;
-        motorspeed--;
-      }
-      motor.write(map(motorspeed, 0, 255, 1800, 2550));
+      targetSpeed = limitspeed + int(controlChannel[6]);
     } else {
-      motorspeed++;
-      if (motorspeed > 19 + int(ControlCH[6])) {
-        motorspeed--;
-        motorspeed--;
-      }
-      motor.write(map(motorspeed, 0, 255, 1800, 2550));
+      targetSpeed = 19 + int(controlChannel[6]);
     }
+    if (motorSpeed < targetSpeed) {
+      motorSpeed++;
+    } else if (motorSpeed > targetSpeed) {
+      motorSpeed--;
+    }
+    motor.write(map(motorSpeed, 0, 255, 1800, 2550));
   }
 }
 
 void gpsav() {
-  is_one1 = false;
-  while (flag) {
-    GPSStatys(); // (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - азимут, dataTelem.ch[5] - КМ/год (GPS може видавати дані 1 раз на секунду)
-    if (millis() - timeoutAV >= 100) { // затримка в 50ms (бо велика швидкість компаса з цього ардуїнці (NANO) складно ловити пакети з GPS)
-      timeoutAV = millis();
-      StatCompass();
-      turnservo();
+  float homeCoordinatesLat = eeprom_read_float(0), homeCoordinatesLng = eeprom_read_float(4);// читаємо по байтах координати з енергонезалежної пам'яті
+  int containerMillis, flipContainersL = 180, flipContainersR = 0;
+  whileLoop = true;
+  while (1) {
+    //debagStat();
+    GPSStatys(); // Якщо є пакети від GPS, то оновлюєм данні dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - заданий курс, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
+    if (millis() - autopilotTimeout >= 100) { // затримка в 100ms (надто велика швидкість компаса, ардуїнці (NANO) складно ловити пакети з GPS)
+      autopilotTimeout = millis();
+      StatCompass(); // оновити дані компаса
+      turnServo(); // повернути серво по оновленим данним
     }
-    LORA_SEND(); // передача даних із пультом + Цифровий компас отримуємо dataTelem.ch[4] - курс
-    LORA_Telem();
-    if (ControlCH[3] > 10) { // Вимкнути функцію з пульта
-      flag = false; // закриваємо цикл while (flag).
-      motorspeed = 0; // Обнулюємо змінну двигуна
-      return;
+    RTH(); // Повернення на домашню точку
+    LORA_Telem();//Якщо дані прийшли, то відправимо телеметрію
+    if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
+      whileLoop = false;
+      motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+      break;// закриємо цикл функції, припинемо виконувати код далі
     }
-    if (dataTelem.ch[2] < -2) { // Якщо дистанція менше 2м відключаємо цикл
-      if (is_one1) { // якщо прапор істина
-        flag = false; // закриємо цикл функції
-        motorspeed = 0; // обнулюємо зміну оборотів
-        motor.write(map(0, 0, 255, 1800, 2550));
-        return;
+    if (dataTelem.ch[2] < -2) { // Якщо дистанція менше 2м вимикаємо функцію
+      if (!whileLoop) { // якщо прапор false
+        whileLoop = false;
+        motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+        break;// закриємо цикл функції, припинемо виконувати код далі
       }
-      if (ControlCH[5] == 1) { // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку.)
-        DISTANCE_LAT = eeprom_read_float(0); // читаємо по байтах координати з енергонезалежної пам'яті
-        DISTANCE_LNG = eeprom_read_float(4);
-        GPSStatys();
-        int flipContainersL = 180, flipContainersR = 0;
-        conteinerMillis = 600;
+      if (controlChannel[5] == 1) { // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку.)
+        DISTANCE_LAT = homeCoordinatesLat; // читаємо координати з енергонезалежної пам'яті
+        DISTANCE_LNG = homeCoordinatesLng;
+        GPSStatys(); //Оновити геопозицію
+        containerMillis = 600;
         if (DISTANCE_LAT != eeprom_read_float(0)) {
-          while (conteinerMillis > 1) {
-            if (millis() - timeoutAV >= 4) {
-              timeoutAV = millis();
-              conteinerMillis--;
+          while (containerMillis > 1) {
+            if (millis() - autopilotTimeout >= 4) {
+              autopilotTimeout = millis();
+              containerMillis--;
               flipContainersL--;
               flipContainersR++;
               servo2.write(map(constrain(flipContainersL, 30, 180), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
               servo3.write(map(constrain(flipContainersR, 0, 150), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
             }
-            LORA_SEND();
-            if (ControlCH[3] > 10) { // Вимкнути функцію з пульта
-              flag = false; // закриваємо цикл while (flag).
-              motorspeed = 0; // Обнулюємо змінну двигуна
-              return;
+            RTH();
+            if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
+              whileLoop = false;
+              motor.write(map(motorSpeed = 0, 0, 255, 1800, 2550));// обнулюємо зміну оборотів
+              break;// закриємо цикл функції, припинемо виконувати код далі
             }
           }
         }
-        is_one1 = true;
-      } else { // Якщо ControlCH[5] != 1
-        is_one1 = true; // відключаємо цикл while (flag)
+      } else { // Якщо controlChannel[5] != 1
+        whileLoop = false; // відключаємо цикл while
       }
     } else {
       servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       limitspeed = 20; // змінити ліміт обертів SpeedMotor();
-      SpeedMotor(); // виклик фун. оборотів двигуна.
+      //SpeedMotor(); // виклик функції оборотів двигуна
     }
   }
 }
