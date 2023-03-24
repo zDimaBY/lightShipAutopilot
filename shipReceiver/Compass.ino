@@ -1,3 +1,15 @@
+float xValue, yValue, zValue; //-------------------- КОМПАС!!!
+//calibratedValues[3] це глобальний масив, куди будуть розміщені калібровані дані
+//calibratedValues[3]: [0]=Xc, [1]=Yc, [2]=Zc
+float calibratedValues[3];
+//transformation(float uncalibratedValues[3]) це функція корекції даних магнітометра
+//uncalibratedValues[3] це масив даних некаліброваного магнітометра
+//uncalibratedValues[3]: [0]=Xnc, [1]=Ync, [2]=Znc
+//vector_length_stabilasation() - – функція стабілізації довжини вектора магнітометра (стабілізації радіуса сфери)
+float scalerValue;
+boolean scalerFlag = false;
+float normal_vector_length;
+
 void getHeading() {
   Vector mag = compass.readRaw();
   xValue = mag.XAxis;

@@ -1,3 +1,6 @@
+
+bool loraTelemetryBoolean = false;
+
 void LORA_Telem() {
   if (loraTelemetryBoolean == true) {
     logikWing();

@@ -19,6 +19,7 @@ void GPSStatys() {
     if (fix.valid.satellites ) {
       dataTelem.ch[7] = fix.satellites;
     }
+    GPSPacketReceived = true;
   }
 }
 int distanceBetween(double lat1, double long1, double lat2, double long2) {

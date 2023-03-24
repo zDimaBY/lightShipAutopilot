@@ -1,6 +1,8 @@
 /*
-  Скетч використовує 20762 байтів (67%) місця зберігання для програм. Межа 30720 байтів.
-  Глобальні змінні використовують 994 байтів (48%) динамічної пам’яті,  залишаючи 1054 байтів для локальних змінних. Межа 2048 байтів. 24.02.2023
+Скетч використовує 20762 байтів (67%) місця зберігання для програм. Межа 30720 байтів.
+Глобальні змінні використовують 994 байтів (48%) динамічної пам’яті,  залишаючи 1054 байтів для локальних змінних. Межа 2048 байтів. 24.02.2023
+Скетч використовує 21084 байтів (68%) місця зберігання для програм. Межа 30720 байтів.
+Глобальні змінні використовують 995 байтів (48%) динамічної пам’яті,  залишаючи 1053 байтів для локальних змінних. Межа 2048 байтів.
 
 */
 
@@ -36,10 +38,7 @@ float voltage; //Вольт метр
 const float r1 = 101500.0; //опір резистора r1
 const float r2 = 20000.0; // опір резистора r2
 
-byte motorSpeed, limitSpeed; // Для автопілота
-unsigned long autopilotTimeout;
-bool loraTelemetryBoolean = false;
-bool whileLoop = false;
+unsigned long autopilotTimeout; //общий таймер
 
 float DISTANCE_LAT_BUFER = 0, DISTANCE_LNG_BUFER = 0;
 float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
@@ -47,59 +46,15 @@ float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
 unsigned long timeoutStat, timeoutBeginPacket, countLoop; // Створюєм змінні для debagStat()
 byte countLoraRead, countLoraSend;
 
-struct TX_DATA {
+struct TX_DATA { // Гарячі періжки
   byte ch[10];
   byte CRC;
 } dataControl;
-
 struct RX_DATA {
   int ch[10];
   byte CRC;
 } dataTelem;
-
-byte controlChannel[16];
-
-float xValue, yValue, zValue; //-------------------- КОМПАС!!!
-//calibratedValues[3] це глобальний масив, куди будуть розміщені калібровані дані
-//calibratedValues[3]: [0]=Xc, [1]=Yc, [2]=Zc
-float calibratedValues[3];
-//transformation(float uncalibratedValues[3]) це функція корекції даних магнітометра
-//uncalibratedValues[3] це масив даних некаліброваного магнітометра
-//uncalibratedValues[3]: [0]=Xnc, [1]=Ync, [2]=Znc
-//vector_length_stabilasation() - – функція стабілізації довжини вектора магнітометра (стабілізації радіуса сфери)
-float scalerValue;
-boolean scalerFlag = false;
-float normal_vector_length;
-
-// PID constants
-const int Kp = 100;
-const float Ki = 0.2;
-const int Kd = 400;
-
-// variables
-int error, previous_error = 0;
-int integral = 0, derivative;
-
-void debugPIDOutput(int output) {
-  Serial.print("error: ");
-  Serial.print(error);
-  Serial.print(" integral: ");
-  Serial.print(integral);
-  Serial.print(" derivative: ");
-  Serial.print(derivative);
-  Serial.print(" output: ");
-  Serial.println(output);
-}
-void turnServo() {//Функція turnServo() виконує поворот сервоприводу за допомогою розрахунку помилки та PID-контролера.
-  error = dataTelem.ch[3] - dataTelem.ch[4];//розрахування помилки
-  integral += error * 10;// Обчислення інтегральної складової з контролем переповнення
-  integral = constrain(integral, -600, 600);
-
-  derivative = error - previous_error;// Обчислення похідної складової
-  int output = (Kp * error + Ki * integral + Kd * derivative) / 100;// Обчислення вихідного сигналу з ПІД-регулятора
-  servo1.write(map(constrain(80 - output, 60, 100), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));// Обмеження вихідного сигналу і запис значення на сервопривід
-  previous_error = error;// Запис поточної помилки для використання як попередньої при наступному виклику функції
-}
+byte controlChannel[16];// Канали керування 
 
 void setup() {
   servo1.attach(3);
@@ -240,89 +195,4 @@ void voltmeter() {
   double decimalPart = modf(voltage, &integerPart);
   int decimalValue = decimalPart * 100;
   dataTelem.ch[8] = decimalValue;
-}
-
-void SpeedMotor() {
-
-  const int interval = 200; // інтервал в мілісекундах
-  static uint32_t previousMillis;
-  uint32_t currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
-    int targetSpeed = 0;
-    if (dataTelem.ch[2] > 15) {
-      targetSpeed = limitSpeed + controlChannel[6];
-    } else {
-      targetSpeed = limitSpeed;
-    }
-    if (motorSpeed < targetSpeed) {
-      motorSpeed++;
-    } else if (motorSpeed > targetSpeed) {
-      motorSpeed--;
-    }
-    motor.write(map(motorSpeed, 0, 255, MIDDLE_PULSE_WIDTH, 2550));
-  }
-}
-
-void gpsav() {
-  limitSpeed = 20; // змінити ліміт обертів SpeedMotor();
-  float homeCoordinatesLat = eeprom_read_float(0), homeCoordinatesLng = eeprom_read_float(4);// читаємо по байтах координати з енергонезалежної пам'яті
-  int containerMillis, flipContainersL = 180, flipContainersR = 0;
-  byte nextWork = 0;
-  whileLoop = true;
-  while (1) {
-    //debagStat();
-    GPSStatys(); // Якщо є пакети від GPS, то оновлюєм данні dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - заданий курс, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
-    if (millis() - autopilotTimeout >= 100) { // затримка в 100ms (надто велика швидкість компаса, ардуїнці (NANO) складно ловити пакети з GPS)
-      autopilotTimeout = millis();
-      StatCompass(); // оновити дані компаса
-      turnServo(); // повернути серво по оновленим данним
-    }
-    RTH(); // Повернення на домашню точку
-    LORA_Telem();//Якщо дані прийшли, то відправимо телеметрію
-    if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
-      whileLoop = false;
-      motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
-      break;// закриємо цикл функції, припинемо виконувати код далі
-    }
-    if (dataTelem.ch[2] < 2) { // Якщо дистанція менше 2м вимикаємо функцію
-      if (!whileLoop) { // якщо прапор false
-        whileLoop = false;
-        motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
-        break;// закриємо цикл функції, припинемо виконувати код далі
-      }
-      if (controlChannel[5] == 1) { // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку.)
-        containerMillis = 600;
-        if (DISTANCE_LAT != eeprom_read_float(0) && distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, homeCoordinatesLat, homeCoordinatesLng) > 6) {
-          while (containerMillis > 1) {
-            if (millis() - autopilotTimeout >= 4) {
-              autopilotTimeout = millis();
-              containerMillis--;
-              servo2.write(map(constrain(flipContainersL--, 30, 180), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-              servo3.write(map(constrain(flipContainersR++, 0, 150), 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-            }
-            RTH();
-            if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
-              whileLoop = false;
-              motor.write(map(motorSpeed = 0, 0, 255, MIDDLE_PULSE_WIDTH, 2550));// обнулюємо зміну оборотів
-              break;// закриємо цикл функції, припинемо виконувати код далі
-            }
-          }
-        }
-        nextWork++;
-        servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-        servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-        DISTANCE_LAT = homeCoordinatesLat; // читаємо координати з енергонезалежної пам'яті
-        DISTANCE_LNG = homeCoordinatesLng;
-        dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); //Оновити відстаннь
-        if (nextWork == 2) { // вимкнути при 2 циклі
-          whileLoop = false; // відключаємо цикл while
-        }
-      } else { // Якщо controlChannel[5] != 1
-        whileLoop = false; // відключаємо цикл while
-      }
-    } else {
-      SpeedMotor(); // виклик функції оборотів двигуна
-    }
-  }
 }
