@@ -1,6 +1,6 @@
 /*
-Скетч використовує 24980 байтів (81%) місця зберігання для програм. Межа 30720 байтів.
-Глобальні змінні використовують 1410 байтів (68%) динамічної пам’яті,  залишаючи 638 байтів для локальних змінних. Межа 2048 байтів.
+Скетч використовує 25286 байтів (82%) місця зберігання для програм. Межа 30720 байтів.
+Глобальні змінні використовують 1442 байтів (70%) динамічної пам’яті,  залишаючи 606 байтів для локальних змінних. Межа 2048 байтів.
 */
 // Макроси для циклів
 #define FOR_i(from, to) for (int i = (from); i < (to); i++)
@@ -194,7 +194,7 @@ void SettingsAvtopilot(void) {
         case 0: pointFlag = !pointFlag; break;
         case 1: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
-          eeprom_write_byte(2, autopilotData[0]);
+          eeprom_write_byte(3, autopilotData[0]);
           return;
           break;
       }
@@ -229,8 +229,8 @@ void SettingsShip(void) {
         case 1: pointFlag = !pointFlag; break;
         case 2: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
-          eeprom_write_byte(3, shipData[0]);
-          eeprom_write_byte(4, shipData[1]);
+          eeprom_write_byte(4, shipData[0]);
+          eeprom_write_byte(5, shipData[1]);
           return;
           break;
       }
@@ -269,24 +269,29 @@ void SettingsRemotecontrol(void) {
       tft.fillScreen(ST77XX_BLACK);
       TextMenu("  +до лiвого рол:", 0);
       TextMenu("  -вiд прав. рол:", 10);
+      TextMenu("  яркість екрана:", 20);
       TextMenu("  (0 - OFF, 1 - ON)", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    printPointer_R(remoteControlData, 20); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
+    printPointer_R(remoteControlData, 30); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
     if (okButton.isClick()) { // Нажатие на ОК - переход в пункт меню
       switch (pointer) { // По номеру указателей располагаем вложенные функции (можно вложенные меню)
         case 0: pointFlag = !pointFlag; break;
         case 1: pointFlag = !pointFlag; break;
+        case 2: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
           leftRole = 0, rightRole = 1023;
           eeprom_write_byte(0, remoteControlData[0]);
           eeprom_write_byte(1, remoteControlData[1]);
+          eeprom_write_byte(2, remoteControlData[2]);// яскравість дисплею
+          analogWrite(TFT_BL_BACKLIGHT, remoteControlData[2]);
           leftRole = leftRole + eeprom_read_byte(0);
           rightRole = rightRole - eeprom_read_byte(1);
           return;
           break;
       }
     }
+    remoteControlData[2] = constrain(remoteControlData[2], 0, 190);
     okButton.tick();
   }
 }

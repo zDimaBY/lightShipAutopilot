@@ -6,7 +6,7 @@
 #define SERVO1_POT_PIN A2
 #define SERVO2_POT_PIN A1
 
-GButton reverseButton(3);
+GButton reverseButton(7);
 GButton okButton(A5);
 
 //для ініцілізації ТФТ
@@ -15,7 +15,7 @@ GButton okButton(A5);
 #define TFT_CS 5//це Chip Select, він використовується для вибору дисплея при передачі даних від мікроконтролера. Кожен дисплей має свій власний Chip Select пін.
 #define TFT_DC 6//це Data/Command Select, він використовується для вказання, чи дані є даними для відображення на екрані, чи командою для керування дисплеєм.
 #define TFT_RST 4//це Reset пін, він використовується для скидання дисплея у випадку, якщо він заблокувався або не відповідає на команди.
-//#define TFT_BL_BACKLIGHT 3 //Регуліровка яркості
+#define TFT_BL_BACKLIGHT 3 //Регуліровка яркості
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
@@ -40,11 +40,13 @@ void initializingPinOutput() {
   pinMode(UP_DOWN_PIN, INPUT);
   pinMode(SERVO1_POT_PIN, INPUT);
   pinMode(SERVO2_POT_PIN, INPUT);
+  pinMode(TFT_BL_BACKLIGHT, OUTPUT);
 }
 void initHardwareSettings(byte *shipData, byte *remoteControlData, byte *autopilotData, byte *dataControl_ch, byte *leftRole, byte *rightRole) {
   shipData[2] = 1; // Налаштування апаратури
   remoteControlData[0] = eeprom_read_byte(0);
   remoteControlData[1] = eeprom_read_byte(1);
+  analogWrite(TFT_BL_BACKLIGHT, remoteControlData[2] = eeprom_read_byte(2));
   leftRole = leftRole + eeprom_read_byte(0);
   rightRole = rightRole - eeprom_read_byte(1);
   autopilotData[0] = dataControl_ch[5] = eeprom_read_byte(2);
