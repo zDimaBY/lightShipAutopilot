@@ -8,7 +8,7 @@ void OLED_textTarger(void) {
   TextMenu("АКБ катера:", 50);
 }
 void OLEDtextTransmitter(void) {
-  if (millis() - TimerOLED >= 1000) {
+  if (millis() - TimerOLED >= 1050) {
     TimerOLED = millis();
     voltage();
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
@@ -53,8 +53,9 @@ void OLEDtextAV(void) {
     tft.setCursor(22, 10);
     tft.print(utf8rus2("точ."));
     tft.print(Telemetry[6]);
-    tft.print(utf8rus2("cм. спут."));
+    tft.print(utf8rus2("cм.|SAT."));
     tft.print(Telemetry[7]);
+    tft.print(" ");
     tft.setCursor(41, 20);
     tft.print(" K ");
     tft.print(Telemetry[4]);

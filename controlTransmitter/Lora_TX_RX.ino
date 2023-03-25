@@ -20,18 +20,11 @@ void LORA_SEND(void) {
 }
 void onReceive(int packetSize) {
   LoRa.readBytes((uint8_t *)&dataTelem, packetSize);
-  byte crc = crc16_asm((byte*)&dataTelem, sizeof(dataTelem)); // Считуємо crc посилки повністю
-  if (crc == 0) {
-    if (dataTelem.ch[9] != 210) { // якщо одержувач не це пристрій або трансляція,
-      //Serial.println("Надійшло повідомлення, але не для мене.");
-      return; //пропустити решту функції
-    }
+  byte crc = crc16_asm((byte*)&dataTelem, sizeof(dataTelem));
+  if (crc == 0 && dataTelem.ch[9] == 210) {
     FOR_i(0, 10) {
       Telemetry[i] = dataTelem.ch[i];
-      //Serial.print(dataTelem.ch[i]);
-      //Serial.print(" ");
     }
-    //Serial.println();
     countLoraRead++;
   }
 }
