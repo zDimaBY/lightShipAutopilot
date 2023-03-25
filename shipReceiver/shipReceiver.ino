@@ -48,10 +48,10 @@ byte controlChannel[16];// Канали керування
 void setup() {
   Serial.begin(115200); //відкриваємо порт для зв'язку з ПК
   SerialGPS.begin(38400); //відкриваємо порт для зв'язку з GPS
-  initializingPinOutput();
-  initializingESC();
-  initializingCompass(compass);
-  initializingLora();
+  initPinOutput();
+  initESC();
+  initCompass(compass);
+  initLora();
   LoRa.onReceive(onReceive); //зареєструвати прийом зворотного дзвінка
 }
 void debagStat() {

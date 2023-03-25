@@ -5,24 +5,24 @@ ServoTimer2 servo2;
 ServoTimer2 servo3;
 ServoTimer2 motor;
 
-void initializingCompass(DFRobot_QMC5883& compass) {
+void initCompass(DFRobot_QMC5883& compass) {
   compass.begin();
   compass.setRange(HMC5883L_RANGE_1_3GA);
   compass.setMeasurementMode(HMC5883L_CONTINOUS);
   compass.setDataRate(HMC5883L_DATARATE_15HZ);
   compass.setSamples(HMC5883L_SAMPLES_8);
 }
-void initializingLora() {
-  LoRa.begin(437E6);
-  LoRa.receive();// переведим радіо в режим прийому
+void initLora() {
+  LoRa.begin(437E6);//запустим на цій частоті
   LoRa.setSignalBandwidth(125E3); //defaults to 125E3. 7.8E3, 10.4E3, 15.6E3, 20.8E3 (250), 31.25E3(200), 41.7E3(150), 62.5E3(80-100), 125E3, 250E3, 500E3
-  LoRa.setTxPower(20);
-  //LoRa.enableInvertIQ(); // Інверсія
-  //LoRa.setCodingRate4(8);
-  //LoRa.setSpreadingFactor(6);
+  LoRa.setTxPower(20);// потужність передавання
+  //LoRa.enableInvertIQ();//використовується для налаштування інверсії IQ в LoRa-модуляції.
+  //LoRa.setCodingRate4(8);//коефіцієнт кодування CR4 (Coding Rate 4) використовується для збільшення стійкості передачі даних за рахунок додаткових бітів, що додаються до кожного блоку даних, що передається.
+  //LoRa.setSpreadingFactor(6);//коефіцієнт розгортання (spreading factor) в LoRa-модуляторі. Коефіцієнт розгортання визначає ширину сигналу, який передається через передавальний канал, і впливає на дальність та швидкість передачі даних.
   LoRa.setSyncWord(0x44);
+  LoRa.receive();// переведим радіо в режим прийому
 }
-void initializingPinOutput() {
+void initPinOutput() {
   servo1.attach(3);
   servo2.attach(4);
   servo3.attach(5);
@@ -32,7 +32,7 @@ void initializingPinOutput() {
   pinMode(A1, OUTPUT);
   pinMode(A2, OUTPUT);
 }
-void initializingESC() {
+void initESC() {
   motor.attach(6);
   motor.write(2250);
   delay(7000);

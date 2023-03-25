@@ -1,20 +1,23 @@
+const byte pixelItems = 70; //Вивід пунктів
+const byte selectedItems = 7; //Вибір пунктів
+
 void workAVcontrol(uint8_t UpAV, uint8_t DownAV) {
-  ok.tick();
+  okButton.tick();
   if (millis() - timerPointer >= 100) {
     timerPointer = millis();
-    int upDownVal = analogRead(UpDown);
-    if (upDownVal < 200) {
+    int UP_DOWN_PINVal = analogRead(UP_DOWN_PIN);
+    if (UP_DOWN_PINVal < 200) {
       dataControl.ch[4] = UpAV;
       TextMenu("Старт автопiлота ! ", 70);
     }
-    if (200 < upDownVal && 800 > upDownVal) {
+    if (200 < UP_DOWN_PINVal && 800 > UP_DOWN_PINVal) {
       dataControl.ch[4] = 0;
       if (millis() - joustik >= 5000) {
         joustik = millis();
         TextMenu("                   ", 70);
       }
     }
-    if (upDownVal > 800) {
+    if (UP_DOWN_PINVal > 800) {
       dataControl.ch[4] = DownAV;
       TextMenu("Точка збережена !!", 70);
     }
@@ -23,15 +26,15 @@ void workAVcontrol(uint8_t UpAV, uint8_t DownAV) {
 void printPointer_L(void) {
   if (millis() - timerPointer >= 100) {
     timerPointer = millis();
-    int upDownVal = analogRead(UpDown);
+    int UP_DOWN_PINVal = analogRead(UP_DOWN_PIN);
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
-    if (upDownVal < 300) {// Якщо кнопку натиснули або утримують
+    if (UP_DOWN_PINVal < 300) {// Якщо кнопку натиснули або утримують
       TextMenu("  ", point);
-      point = constrain(point - 10, 0, ITEMS); // Рухаємо покажчик у межах дисплея
+      point = constrain(point - 10, 0, pixelItems); // Рухаємо покажчик у межах дисплея
     }
-    if (upDownVal > 600) {
+    if (UP_DOWN_PINVal > 600) {
       TextMenu("  ", point);
-      point = constrain(point + 10, 0, ITEMS);
+      point = constrain(point + 10, 0, pixelItems);
     }
     TextMenu(">-", point);
   }
@@ -39,27 +42,27 @@ void printPointer_L(void) {
 void printPointer_R(byte *arr, byte pixelCountMenu) {
   if (millis() - timerPointer >= 100) {
     timerPointer = millis();
-    int upDownVal = analogRead(UpDown);
+    int UP_DOWN_PINVal = analogRead(UP_DOWN_PIN);
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
-    if (upDownVal < 300) { // Якщо кнопку натиснули або утримують
-      if (flagPoint) {
+    if (UP_DOWN_PINVal < 300) { // Якщо кнопку натиснули або утримують
+      if (pointFlag) {
         TextMenu("  ", point);
-        point = constrain(point - 10, 0, ITEMS);// Рухаємо покажчик у межах дисплея
-        pointer = constrain(pointer - 1, 0, pointITEMS); 
+        point = constrain(point - 10, 0, pixelItems);// Рухаємо покажчик у межах дисплея
+        pointer = constrain(pointer - 1, 0, selectedItems); 
       } else {
         arr[pointer]++;
       }
     }
-    if (upDownVal > 600) {
-      if (flagPoint) {
+    if (UP_DOWN_PINVal > 600) {
+      if (pointFlag) {
         TextMenu("  ", point);
-        point = constrain(point + 10, 0, ITEMS);// Рухаємо покажчик у межах дисплея
-        pointer = constrain(pointer + 1, 0, pointITEMS); 
+        point = constrain(point + 10, 0, pixelItems);// Рухаємо покажчик у межах дисплея
+        pointer = constrain(pointer + 1, 0, selectedItems); 
       } else {
         arr[pointer]--;
       }
     }
-    if (flagPoint) {
+    if (pointFlag) {
       TextMenu(">-", point);
     } else {
       tft.setCursor(120, point);
@@ -73,7 +76,7 @@ void printPointer_R(byte *arr, byte pixelCountMenu) {
   }
 }
 void printPointer(uint8_t pointer) {
-  if (flagPoint) {
+  if (pointFlag) {
     TextMenu(">-", pointer);
   } else {
     tft.setCursor(120, pointer);

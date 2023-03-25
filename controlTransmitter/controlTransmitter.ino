@@ -1,34 +1,33 @@
 /*
-Скетч використовує 24960 байтів (81%) місця зберігання для програм. Межа 30720 байтів.
+Скетч використовує 24980 байтів (81%) місця зберігання для програм. Межа 30720 байтів.
 Глобальні змінні використовують 1410 байтів (68%) динамічної пам’яті,  залишаючи 638 байтів для локальних змінних. Межа 2048 байтів.
 */
-
+// Макроси для циклів
 #define FOR_i(from, to) for (int i = (from); i < (to); i++)
 #define FOR_iTen(from, to) for (int i = (from), a = (from); i < (to); i=i+10, a++)
 
-#include <SPI.h>
-#include <LoRa.h>
-#include <avr/eeprom.h>// Енергонезависимая память
-#include <Adafruit_GFX.h>// Core graphics library
-#include <Adafruit_ST7735.h>// Hardware-specific library
-#include "Initialization.h" //Підключаємо файл ініціалізацій
+#include <SPI.h> // Підключаємо бібліотеку для роботи з SPI-інтерфейсом
+#include <LoRa.h> // Підключаємо бібліотеку для роботи з модулем LoRa
+#include <avr/eeprom.h> // Підключаємо бібліотеку для роботи з енергонезалежною пам'яттю
+#include <Adafruit_GFX.h>// Основна бібліотека для роботи з графікою
+#include <Adafruit_ST7735.h>// Бібліотека для роботи з конкретним апаратним забезпеченням
+#include "Initialization.h" // Файл ініціалізації
 
-byte dataAvtopilot[5], dataShip[5], dataRemotecontrol[5]; // Общее кол во пунктов
-byte limitmotor = 155, DriveMin = 144, DriveMax = 255; // Ограничение оборотов двигателя
-int RoleLeft = 0, RoleRigch = 1023;
-bool flagPoint = true, is_one0 = true;// up OLED
-byte ITEMS = 70; //Вивід пунктів
-byte pointITEMS = 7; //Вибір пунктів
+byte autopilotData[5], shipData[5], remoteControlData[5];// Масиви даних для збереження даних налаштувань
+
+
+byte motorLimit = 155, minDrive = 144, maxDrive = 255;// Обмеження обертів двигуна
+int leftRole = 0, rightRole = 1023;// Для обмеження ROLL, корекції керування
+
+bool pointFlag = true, is_one0 = true; // up OLED
 byte point = 0; // Змінна покажчика у пікселях
 byte pointer = 0; // Змінна покажчика у масивах
+byte countLoraRead, countLORA; // лічильники пакетів даних
 
-float r1 = 101000.0; //сопротивление резистора r1
-float r2 = 10000.0; //сопротивление резистора r2
-
-unsigned long timeoutERROR, TimerOLED, joustik, timerPointer; //таймер
-
-unsigned long timeoutBeginPacket, countLoop;
-byte countLoraRead, countLORA;
+// Опір резисторів та таймери
+const float r1 = 101000.0;
+const float r2 = 10000.0;
+unsigned long timeoutERROR, TimerOLED, joustik, timerPointer, timeoutBeginPacket, countLoop;
 
 struct TX_DATA {
   byte ch[10];
@@ -44,8 +43,8 @@ int Telemetry[16];
 
 void setup() {
   //Serial.begin(115200);
-  initializationST7735S(tft);
-  initializationHardwareSettings(dataShip, dataRemotecontrol, dataAvtopilot, dataControl.ch, RoleLeft, RoleRigch);
+  initST7735S(tft);
+  initHardwareSettings(shipData, remoteControlData, autopilotData, dataControl.ch, leftRole, rightRole);
   initializingPinOutput();
   initializingLora();
   LoRa.onReceive(onReceive); //Коли модуль LoRa отримує дані, він викликає функцію зворотнього виклику onReceive, яка передає отримані дані у вигляді масиву байтів.
@@ -64,9 +63,9 @@ void loop() {//Головне меню
     TextMenu("           Мельничука", 50);
     TextMenu("  ___________________", 60);
   }
-  ok.tick(); //Опитування кнопок
+  okButton.tick(); //Опитування кнопок
   printPointer_L();  // Показати стрілку
-  if (ok.isClick()) {   // Натискання на ОК - перехід до пункту меню
+  if (okButton.isClick()) {   // Натискання на ОК - перехід до пункту меню
     switch (point) {  // За номером покажчиків маємо вкладені функції (можна вкладені меню)
       case 0: is_one0 = true; transmitter(); break;  // Після натискання на ОК при наведенні на 0й пункт викликати функцію
       case 10: is_one0 = true; GPSautopilot(); break;
@@ -95,17 +94,17 @@ void transmitter(void) {
   while (1) {
     LORA_SEND();
     OLEDtextTransmitter();
-    ok.tick();
-    reverse.tick();
-    if (reverse.isClick()) {
-      DriveMin = 144;
-      DriveMax = 255;
+    okButton.tick();
+    reverseButton.tick();
+    if (reverseButton.isClick()) {
+      minDrive = 144;
+      maxDrive = 255;
     }
-    if (reverse.isHolded()) {
-      DriveMin = 144;
-      DriveMax = 0;
+    if (reverseButton.isHolded()) {
+      minDrive = 144;
+      maxDrive = 0;
     }
-    if (ok.isClick()) return;
+    if (okButton.isClick()) return;
   }
 }
 
@@ -124,9 +123,9 @@ void GPSautopilot(void) {
       TextMenu("  точка 6", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    ok.tick(); //Опитування кнопок
+    okButton.tick(); //Опитування кнопок
     printPointer_L();  // Показати стрілку
-    if (ok.isClick()) {   // Натискання на OK - Перехід до пункту меню
+    if (okButton.isClick()) {   // Натискання на OK - Перехід до пункту меню
       switch (point) {  // За кількістю знаків ми вклали функції (ви можете вкладені меню)
         case 0: loopAutopilot(1, 2); is_one0 = true; break;  // Натиснувши на OK, коли керується 0 точкою, зателефонуйте на функцію (в даному випадку домашня точка)
         case 10: loopAutopilot(3, 4); is_one0 = true; break;
@@ -147,7 +146,7 @@ void loopAutopilot(byte oneAV, byte twoAV) {
     OLEDtextAV();
     debag();
     workAVcontrol(oneAV, twoAV);
-    if (ok.isClick()) return;
+    if (okButton.isClick()) return;
   }
 }
 void Settings(void) {
@@ -162,9 +161,9 @@ void Settings(void) {
       TextMenu("  (0 - OFF, 1 - ON)", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    ok.tick(); //Опитування кнопок
+    okButton.tick(); //Опитування кнопок
     printPointer_L();  // Показати стрілку
-    if (ok.isClick()) {   // Нажатие на ОК - переход в пункт меню
+    if (okButton.isClick()) {   // Нажатие на ОК - переход в пункт меню
       switch (point) {  // По номеру указателей располагаем вложенные функции (можно вложенные меню)
         case 0: is_one0 = true; SettingsAvtopilot(); break;
         case 10: is_one0 = true; SettingsShip(); break;
@@ -189,25 +188,25 @@ void SettingsAvtopilot(void) {
       TextMenu("  (0 - OFF, 1 - ON)", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    printPointer_R(dataAvtopilot, 20); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
-    if (ok.isClick()) {   // Нажатие на ОК - переход в пункт меню
+    printPointer_R(autopilotData, 20); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
+    if (okButton.isClick()) {   // Нажатие на ОК - переход в пункт меню
       switch (pointer) {  // По номеру указателей располагаем вложенные функции (можно вложенные меню)
-        case 0: flagPoint = !flagPoint; break;
-        case 1: flagPoint = !flagPoint; break;
+        case 0: pointFlag = !pointFlag; break;
+        case 1: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
-          eeprom_write_byte(2, dataAvtopilot[0]);
+          eeprom_write_byte(2, autopilotData[0]);
           return;
           break;
       }
     }
-    if (dataAvtopilot[0] == 2) {
-      dataAvtopilot[0] = 1;
-    } else if (dataAvtopilot[0] > 250) {
-      dataAvtopilot[0] = 0;
+    if (autopilotData[0] == 2) {
+      autopilotData[0] = 1;
+    } else if (autopilotData[0] > 250) {
+      autopilotData[0] = 0;
     }
-    dataControl.ch[5] = dataAvtopilot[0];
-    dataControl.ch[6] = dataAvtopilot[1];
-    ok.tick();
+    dataControl.ch[5] = autopilotData[0];
+    dataControl.ch[6] = autopilotData[1];
+    okButton.tick();
   }
 }
 void SettingsShip(void) {
@@ -223,42 +222,42 @@ void SettingsShip(void) {
       TextMenu("  (0 - OFF, 1 - ON)", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    printPointer_R(dataShip, 30); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
-    if (ok.isClick()) {   // Натискання на ОК - перехід до пункту меню
+    printPointer_R(shipData, 30); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
+    if (okButton.isClick()) {   // Натискання на ОК - перехід до пункту меню
       switch (pointer) {  // За номером покажчиків маємо вкладені функції (можна вкладені меню)
-        case 0: flagPoint = !flagPoint; break;
-        case 1: flagPoint = !flagPoint; break;
-        case 2: flagPoint = !flagPoint; break;
+        case 0: pointFlag = !pointFlag; break;
+        case 1: pointFlag = !pointFlag; break;
+        case 2: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
-          eeprom_write_byte(3, dataShip[0]);
-          eeprom_write_byte(4, dataShip[1]);
+          eeprom_write_byte(3, shipData[0]);
+          eeprom_write_byte(4, shipData[1]);
           return;
           break;
       }
     }
-    if (dataShip[0] == 2) {
-      dataShip[0] = 1;
-    } else if (dataShip[0] > 200) {
-      dataShip[0] = 0;
+    if (shipData[0] == 2) {
+      shipData[0] = 1;
+    } else if (shipData[0] > 200) {
+      shipData[0] = 0;
     }
-    dataControl.ch[7] = dataShip[0];
-    if (dataShip[1] == 2) {
-      dataShip[1] = 1;
-    } else if (dataShip[1] > 200) {
-      dataShip[1] = 0;
+    dataControl.ch[7] = shipData[0];
+    if (shipData[1] == 2) {
+      shipData[1] = 1;
+    } else if (shipData[1] > 200) {
+      shipData[1] = 0;
     }
-    dataControl.ch[8] = dataShip[1];
-    if (dataShip[2] == 0) {
-      limitmotor = 255;
-    } else if (dataShip[2] == 1) {
-      limitmotor = 155;
+    dataControl.ch[8] = shipData[1];
+    if (shipData[2] == 0) {
+      motorLimit = 255;
+    } else if (shipData[2] == 1) {
+      motorLimit = 155;
     }
-    if (dataShip[2] == 2) {
-      dataShip[2] = 1;
-    } else if (dataShip[2] > 250) {
-      dataShip[2] = 0;
+    if (shipData[2] == 2) {
+      shipData[2] = 1;
+    } else if (shipData[2] > 250) {
+      shipData[2] = 0;
     }
-    ok.tick();
+    okButton.tick();
   }
 }
 void SettingsRemotecontrol(void) {
@@ -273,21 +272,21 @@ void SettingsRemotecontrol(void) {
       TextMenu("  (0 - OFF, 1 - ON)", 60);
       TextMenu("  назад у меню <---", 70);
     }
-    printPointer_R(dataRemotecontrol, 20); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
-    if (ok.isClick()) { // Нажатие на ОК - переход в пункт меню
+    printPointer_R(remoteControlData, 20); //Вказуєм вказівник на масив налаштувань, та вивід кількість налаштувань у пікселях.
+    if (okButton.isClick()) { // Нажатие на ОК - переход в пункт меню
       switch (pointer) { // По номеру указателей располагаем вложенные функции (можно вложенные меню)
-        case 0: flagPoint = !flagPoint; break;
-        case 1: flagPoint = !flagPoint; break;
+        case 0: pointFlag = !pointFlag; break;
+        case 1: pointFlag = !pointFlag; break;
         case 7: is_one0 = true;
-          RoleLeft = 0, RoleRigch = 1023;
-          eeprom_write_byte(0, dataRemotecontrol[0]);
-          eeprom_write_byte(1, dataRemotecontrol[1]);
-          RoleLeft = RoleLeft + eeprom_read_byte(0);
-          RoleRigch = RoleRigch - eeprom_read_byte(1);
+          leftRole = 0, rightRole = 1023;
+          eeprom_write_byte(0, remoteControlData[0]);
+          eeprom_write_byte(1, remoteControlData[1]);
+          leftRole = leftRole + eeprom_read_byte(0);
+          rightRole = rightRole - eeprom_read_byte(1);
           return;
           break;
       }
     }
-    ok.tick();
+    okButton.tick();
   }
 }

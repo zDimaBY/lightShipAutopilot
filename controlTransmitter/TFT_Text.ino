@@ -8,7 +8,7 @@ void OLED_textTarger(void) {
   TextMenu("АКБ катера:", 50);
 }
 void OLEDtextTransmitter(void) {
-  if (millis() - TimerOLED >= 1050) {
+  if (millis() - TimerOLED >= 1150) {
     TimerOLED = millis();
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     tft.setCursor(48, 0);

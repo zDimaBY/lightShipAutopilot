@@ -1,8 +1,8 @@
 void logikWing(void) {
-  dataControl.ch[0] = constrain(map(analogRead(potPinMotor), 0, 1023, DriveMin, DriveMax), 130, limitmotor);
-  dataControl.ch[1] = constrain(map(analogRead(potPinRole), RoleLeft, RoleRigch, 60, 100), 60, 100);
-  dataControl.ch[2] = map(analogRead(potContainerServo1), 0, 1023, 30, 180);
-  dataControl.ch[3] = map(analogRead(potContainerServo2), 0, 1023, 0, 150);
+  dataControl.ch[0] = constrain(map(analogRead(MOTOR_POT_PIN), 0, 1023, minDrive, maxDrive), 130, motorLimit);
+  dataControl.ch[1] = constrain(map(analogRead(ROLE_POT_PIN), leftRole, rightRole, 60, 100), 60, 100);
+  dataControl.ch[2] = map(analogRead(SERVO1_POT_PIN), 0, 1023, 30, 180);
+  dataControl.ch[3] = map(analogRead(SERVO2_POT_PIN), 0, 1023, 0, 150);
   dataControl.ch[9] = 205;
   dataControl.CRC = crc16_asm((byte*)&dataControl, sizeof(dataControl) - 1);
 }
