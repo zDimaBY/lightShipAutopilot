@@ -63,7 +63,7 @@ struct RX_DATA {
 int Telemetry[16];
 
 void setup() {
-  //Serial.begin(9600);
+  //Serial.begin(115200);
   tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
   tft.setTextWrap(false);//якщо текст виводиться з обгортанням(true) і не вміщується на одному рядку, він буде перенесений на наступний рядок.
   tft.cp437(true);//вказує дисплею на використання таблиці кодування CP437, що містить символи ASCII з додатковими символами, такими як лінії, криві, різні графічні символи тощо. Для Укранїнських символів.

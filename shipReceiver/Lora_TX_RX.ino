@@ -1,16 +1,18 @@
+unsigned int communicationTimeout = 500; // інтервал розриву зв'язку
+unsigned int returnTimeout = 60000; // інтервал повернення після розриву зв'язку
+unsigned int lastCommunicationTime;
 
-bool loraTelemetryBoolean = false;
-
-void LORA_Telem() {
-  if (loraTelemetryBoolean == true) {
-    logikWing();
-    countLoraSend++;
-    LoRa.beginPacket(); // Створення пакету
-    LoRa.write((uint8_t*)&dataTelem, sizeof(dataTelem));
-    LoRa.endPacket(true);
-    LoRa.receive();
-    loraTelemetryBoolean = false;
-  }
+void logikWing() {
+  dataTelem.ch[9] = 210;
+  dataTelem.CRC = crc16_asm((byte*)&dataTelem, sizeof(dataTelem) - 1);
+}
+void LoraTelemetrySend() {
+  logikWing();//готуєм для верифікацій
+  LoRa.beginPacket(); // Створення пакету
+  LoRa.write((uint8_t*)&dataTelem, sizeof(dataTelem));
+  LoRa.endPacket(true);
+  LoRa.receive();
+  countLoraSend++;
 }
 void RTH() {
   if (millis() - timeoutBeginPacket >= 100) {
@@ -29,11 +31,11 @@ void RTH() {
     }
   }
 }
-
 void onReceive(int packetSize) {// Функція onReceive приймає параметр packetSize, який вказує на розмір пакету.
   LoRa.readBytes((uint8_t *)&dataControl, packetSize); //читає цілі байти з LoRa-модуля та записує їх у змінну dataControl
   byte crcc = crc16_asm((byte*)&dataControl, sizeof(dataControl)); // Обчислюємо контрольну суму (CRC) для отриманих даних
   if (crcc == 0 && dataControl.ch[9] == 205) { // Перевіряємо правильність CRC та перевіряємо, чи це наша трансляція
+    LoraTelemetrySend();// Відправляємо телеметрію
     memcpy(controlChannel, dataControl.ch, sizeof(controlChannel)); // Копіюємо дані з dataControl.ch у controlChannel
     lastCommunicationTime = millis(); // Зберігаємо час останньої комунікації
     if (!whileLoop) { // Якщо whileLoop == false, дозволяємо керувати катером
@@ -44,7 +46,6 @@ void onReceive(int packetSize) {// Функція onReceive приймає па�
       servo2.write(map(controlChannel[2], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(controlChannel[3], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
-    loraTelemetryBoolean = true; // Дозволяємо відправляти телеметрію
     countLoraRead++; // Збільшуємо лічильник отриманих пакетів
   }
 }

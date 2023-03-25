@@ -1,5 +1,5 @@
 #include <ServoTimer2.h> // Підключаємо бібліотеку для роботи з сервоприводами
- 
+
 ServoTimer2 servo1;// Створюємо об'єкти для керування сервомоторами
 ServoTimer2 servo2;
 ServoTimer2 servo3;
@@ -23,14 +23,14 @@ void initializingLora() {
   LoRa.setSyncWord(0x44);
 }
 void initializingPinOutput() {
-servo1.attach(3);
-servo2.attach(4);
-servo3.attach(5);
-pinMode(A1, OUTPUT);
-pinMode(A2, OUTPUT);
-servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+  servo1.attach(3);
+  servo2.attach(4);
+  servo3.attach(5);
+  servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+  servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+  servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+  pinMode(A1, OUTPUT);
+  pinMode(A2, OUTPUT);
 }
 void initializingESC() {
   motor.attach(6);

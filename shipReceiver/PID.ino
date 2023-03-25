@@ -1,7 +1,7 @@
 // PID constants
-const int Kp = 100;
+const int Kp = 80;
 const float Ki = 0.2;
-const int Kd = 400;
+const int Kd = 800;
 
 // variables
 int error, previous_error = 0;
@@ -18,9 +18,9 @@ void debugPIDOutput(int output) {
   Serial.println(output);
 }
 void turnServo() {//Функція turnServo() виконує поворот сервоприводу за допомогою розрахунку помилки та PID-контролера.
-  error = dataTelem.ch[3] - dataTelem.ch[4];//розрахування помилки
-  integral += error * 10;// Обчислення інтегральної складової з контролем переповнення
-  integral = constrain(integral, -600, 600);
+  error = dataTelem.ch[3] - dataTelem.ch[4];//розрахування помилки dataTelem.ch[1] - GPS курс, dataTelem.ch[3] - заданий курс, dataTelem.ch[4] - компас курс
+  integral += error * 20;// Обчислення інтегральної складової з контролем переповнення
+  integral = constrain(integral, -600, 600);// Обмеження інтегральної складової
 
   derivative = error - previous_error;// Обчислення похідної складової
   int output = (Kp * error + Ki * integral + Kd * derivative) / 100;// Обчислення вихідного сигналу з ПІД-регулятора

@@ -16,22 +16,15 @@
 #include <avr/eeprom.h> // Підключаємо бібліотеку для роботи з енергонезалежною пам'яттю
 #include <NMEAGPS.h> // Підключаємо бібліотеку для роботи з GPS-модулем (виклик функції GPS NEO-6m) dataTelem.ch[1] - GPS курс, dataTelem.ch[2] - дистанція, dataTelem.ch[3] - заданий курс, dataTelem.ch[5] - КМ/год (GPS може видавати дані 10 раз на секунду)
 #include <GPSport.h>// Підключаємо бібліотеку для роботи з GPS-модулем (містить класи та функції для роботи з різними типами портів, такими як послідовний порт (Serial), SoftwareSerial, AltSoftSerial та HardwareSerial)
-
 #include <AltSoftSerial.h> // Підключаємо бібліотеку для роботи з AltSoftSerial (порт для GPS)
 #include <Wire.h> // Підключаємо бібліотеку для роботи з I2C-протоколом
 #include <DFRobot_QMC5883.h> // Підключаємо бібліотеку для роботи з магнітним датчиком
-
-#include "Initialization.h"
-
+#include "Initialization.h" //Підключаємо файл ініціалізацій
 
 NMEAGPS gps; // Створюємо об'єкт для роботи з GPS-модулем
 DFRobot_QMC5883 compass; // Створюємо об'єкт для роботи з магнітним датчиком
 
 AltSoftSerial SerialGPS(8, 9);
-
-unsigned int communicationTimeout = 500; // інтервал розриву зв'язку
-unsigned int returnTimeout = 60000; // інтервал повернення після розриву зв'язку
-unsigned int lastCommunicationTime;
 
 float voltage; //Вольт метр
 const float r1 = 101500.0; //опір резистора r1
@@ -45,7 +38,7 @@ float DISTANCE_LAT = eeprom_read_float(0), DISTANCE_LNG = eeprom_read_float(4);
 unsigned long timeoutStat, timeoutBeginPacket, countLoop; // Створюєм змінні для debagStat()
 byte countLoraRead, countLoraSend;
 
-struct TX_DATA { // Гарячі періжки
+struct TX_DATA { // Гарячі пиріжки
   byte ch[10];
   byte CRC;
 } dataControl;
@@ -85,16 +78,16 @@ void loop() {
   GPSStatys();
   if (millis() - autopilotTimeout >= 200) { // затримка в 200ms (надто велика швидкість компаса, ардуїнці (NANO) складно ловити пакети з GPS)
     autopilotTimeout = millis();
-    StatCompass();
     voltmeter();
+    StatCompass();
   }
   //debagStat();
   RTH();
-  LORA_Telem();
   switch (controlChannel[4]) {
     case 1:
       DISTANCE_LAT = eeprom_read_float(0);
       DISTANCE_LNG = eeprom_read_float(4);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 2:
@@ -104,6 +97,7 @@ void loop() {
     case 3:
       DISTANCE_LAT = eeprom_read_float(8);
       DISTANCE_LNG = eeprom_read_float(12);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 4:
@@ -113,6 +107,7 @@ void loop() {
     case 5:
       DISTANCE_LAT = eeprom_read_float(16);
       DISTANCE_LNG = eeprom_read_float(20);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 6:
@@ -122,6 +117,7 @@ void loop() {
     case 7:
       DISTANCE_LAT = eeprom_read_float(24);
       DISTANCE_LNG = eeprom_read_float(28);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 8:
@@ -131,6 +127,7 @@ void loop() {
     case 9:
       DISTANCE_LAT = eeprom_read_float(32);
       DISTANCE_LNG = eeprom_read_float(36);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 10:
@@ -140,6 +137,7 @@ void loop() {
     case 11:
       DISTANCE_LAT = eeprom_read_float(40);
       DISTANCE_LNG = eeprom_read_float(44);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 12:
@@ -149,6 +147,7 @@ void loop() {
     case 13:
       DISTANCE_LAT = eeprom_read_float(48);
       DISTANCE_LNG = eeprom_read_float(52);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
       gpsav();
       break;
     case 14:
@@ -158,10 +157,6 @@ void loop() {
   }
   digitalWrite(A1, controlChannel[7] > 0 ? LOW : HIGH);
   digitalWrite(A2, controlChannel[8] > 0 ? LOW : HIGH);
-}
-void logikWing() {
-  dataTelem.ch[9] = 210;
-  dataTelem.CRC = crc16_asm((byte*)&dataTelem, sizeof(dataTelem) - 1);
 }
 
 void voltmeter() {

@@ -5,7 +5,6 @@ bool whileLoop = false;
 void gpsav() {
   limitSpeed = 20; // змінити ліміт обертів SpeedMotor();
   float homeCoordinatesLat = eeprom_read_float(0), homeCoordinatesLng = eeprom_read_float(4);// читаємо по байтах координати з енергонезалежної пам'яті
-  byte nextWork = 0;
   whileLoop = true;
   while (1) {
     //debagStat();
@@ -15,7 +14,6 @@ void gpsav() {
       turnServo(); // повернути серво по оновленим данним
     }
     RTH(); // Повернення на домашню точку
-    LORA_Telem();//Якщо дані прийшли, то відправимо телеметрію
     if (controlChannel[3] > 10) { // Вимкнути функцію з пульта
       stopFunction();
       break;// закриємо цикл функції, припинемо виконувати код далі
@@ -26,14 +24,10 @@ void gpsav() {
         break;// закриємо цикл функції, припинемо виконувати код далі
       }
 
-      // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку) і якщо відстать більша від домашньой точки
-      if (controlChannel[5] == 1 && distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, homeCoordinatesLat, homeCoordinatesLng) > 6) {
+      // якщо на пульті увімкнено режим 1 (Заплив на точку, розвантаження та повернення на домашню точку) і якщо відстать більша від домашньой точки чим 6 метрів
+      if (controlChannel[5] == 1 && distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, homeCoordinatesLat, homeCoordinatesLng) > 6) { //тоді..
         unloadContainers();
         returnHome();
-        nextWork++;
-        if (nextWork == 2) { // вимкнути при 2 циклі
-          whileLoop = false; // відключаємо цикл while
-        }
       } else { // Якщо controlChannel[5] != 1
         whileLoop = false; // відключаємо цикл while
       }
@@ -84,5 +78,6 @@ void SpeedMotor() {
       motorSpeed--;
     }
     motor.write(map(motorSpeed, 0, 255, MIDDLE_PULSE_WIDTH, 2550));
+    voltmeter();
   }
 }
