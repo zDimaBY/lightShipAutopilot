@@ -10,7 +10,6 @@ void OLED_textTarger(void) {
 void OLEDtextTransmitter(void) {
   if (millis() - TimerOLED >= 1050) {
     TimerOLED = millis();
-    voltage();
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     tft.setCursor(48, 0);
     tft.print(map(dataControl.ch[0], 144, 255, 0, 99));
@@ -24,7 +23,7 @@ void OLEDtextTransmitter(void) {
     tft.print(Telemetry[7]);
     tft.print("  ");
     tft.setCursor(66, 20);
-    tft.print(input_volt);
+    tft.print(voltage());
     tft.setCursor(66, 30);
     tft.print(Telemetry[0]);
     tft.print(".");
@@ -42,7 +41,6 @@ void OLEDtextTransmitter(void) {
 }
 void OLEDtextAV(void) {
   if (millis() - TimerOLED >= 1000) {
-    voltage();
     TimerOLED = millis();
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     tft.setCursor(55, 0);
@@ -66,7 +64,7 @@ void OLEDtextAV(void) {
     tft.print(Telemetry[3]);
     tft.print(utf8rus2(" град.  "));
     tft.setCursor(66, 40);
-    tft.print(input_volt);
+    tft.print(voltage());
     tft.setCursor(66, 50);
     tft.print(Telemetry[0]);
     tft.print(".");
