@@ -49,7 +49,7 @@ void initHardwareSettings(byte *shipData, byte *remoteControlData, byte *autopil
   analogWrite(TFT_BL_BACKLIGHT, remoteControlData[2] = eeprom_read_byte(2));
   leftRole = leftRole + eeprom_read_byte(0);
   rightRole = rightRole - eeprom_read_byte(1);
-  autopilotData[0] = dataControl_ch[5] = eeprom_read_byte(2);
-  shipData[0] = dataControl_ch[7] = eeprom_read_byte(3);
-  shipData[1] = dataControl_ch[8] = eeprom_read_byte(4);
+  autopilotData[0] = dataControl_ch[5] = eeprom_read_byte(3);
+  shipData[0] = dataControl_ch[7] = eeprom_read_byte(4);
+  shipData[1] = dataControl_ch[8] = eeprom_read_byte(5);
 }
