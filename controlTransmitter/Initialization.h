@@ -20,7 +20,7 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 void initializingLora() {
   LoRa.begin(437E6);
-  LoRa.setSignalBandwidth(250E3); //defaults to 125E3. 7.8E3, 10.4E3, 15.6E3, 20.8E3 (250), 31.25E3(200), 41.7E3(150), 62.5E3(80-100), 125E3, 250E3, 500E3
+  LoRa.setSignalBandwidth(125E3); //defaults to 125E3. 7.8E3, 10.4E3, 15.6E3, 20.8E3 (250), 31.25E3(200), 41.7E3(150), 62.5E3(80-100), 125E3, 250E3, 500E3
   LoRa.setTxPower(20);
   //LoRa.enableInvertIQ();//використовується для налаштування інверсії IQ в LoRa-модуляції.
   //LoRa.setCodingRate4(8);//коефіцієнт кодування CR4 (Coding Rate 4) використовується для збільшення стійкості передачі даних за рахунок додаткових бітів, що додаються до кожного блоку даних, що передається.

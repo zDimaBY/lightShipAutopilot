@@ -15,7 +15,7 @@ void initializingCompass(DFRobot_QMC5883& compass) {
 void initializingLora() {
   LoRa.begin(437E6);
   LoRa.receive();// переведим радіо в режим прийому
-  LoRa.setSignalBandwidth(250E3); //defaults to 125E3. 7.8E3, 10.4E3, 15.6E3, 20.8E3 (250), 31.25E3(200), 41.7E3(150), 62.5E3(80-100), 125E3, 250E3, 500E3
+  LoRa.setSignalBandwidth(125E3); //defaults to 125E3. 7.8E3, 10.4E3, 15.6E3, 20.8E3 (250), 31.25E3(200), 41.7E3(150), 62.5E3(80-100), 125E3, 250E3, 500E3
   LoRa.setTxPower(20);
   //LoRa.enableInvertIQ(); // Інверсія
   //LoRa.setCodingRate4(8);
