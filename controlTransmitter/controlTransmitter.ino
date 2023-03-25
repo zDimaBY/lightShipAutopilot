@@ -1,5 +1,5 @@
 /*
-Скетч використовує 25286 байтів (82%) місця зберігання для програм. Межа 30720 байтів.
+Скетч використовує 25220 байтів (82%) місця зберігання для програм. Межа 30720 байтів.
 Глобальні змінні використовують 1442 байтів (70%) динамічної пам’яті,  залишаючи 606 байтів для локальних змінних. Межа 2048 байтів.
 */
 // Макроси для циклів
@@ -199,13 +199,9 @@ void SettingsAvtopilot(void) {
           break;
       }
     }
-    if (autopilotData[0] == 2) {
-      autopilotData[0] = 1;
-    } else if (autopilotData[0] > 250) {
-      autopilotData[0] = 0;
-    }
-    dataControl.ch[5] = autopilotData[0];
-    dataControl.ch[6] = autopilotData[1];
+    autopilotData[0] = constrain(autopilotData[0], 0, 1);//обмежуєм налаштування
+    dataControl.ch[5] = autopilotData[0]; //збережемо для відправки на керуючу модель
+    dataControl.ch[6] = autopilotData[1]; //збережемо для відправки на керуючу модель
     okButton.tick();
   }
 }
@@ -235,28 +231,14 @@ void SettingsShip(void) {
           break;
       }
     }
-    if (shipData[0] == 2) {
-      shipData[0] = 1;
-    } else if (shipData[0] > 200) {
-      shipData[0] = 0;
-    }
-    dataControl.ch[7] = shipData[0];
-    if (shipData[1] == 2) {
-      shipData[1] = 1;
-    } else if (shipData[1] > 200) {
-      shipData[1] = 0;
-    }
-    dataControl.ch[8] = shipData[1];
-    if (shipData[2] == 0) {
-      motorLimit = 255;
-    } else if (shipData[2] == 1) {
-      motorLimit = 155;
-    }
-    if (shipData[2] == 2) {
-      shipData[2] = 1;
-    } else if (shipData[2] > 250) {
-      shipData[2] = 0;
-    }
+    shipData[0] = constrain(shipData[0], 0, 1);//обмежуєм налаштування
+    dataControl.ch[7] = shipData[0];//збережемо для відправки на керуючу модель
+
+    shipData[1] = constrain(shipData[1], 0, 1);//обмежуєм налаштування
+    dataControl.ch[8] = shipData[1];//збережемо для відправки на керуючу модель
+    
+    shipData[2] = constrain(shipData[2], 0, 1);//обмежуєм налаштування
+    motorLimit = (shipData[2] == 0) ? 255 : 155;//якщо значення shipData[2] дорівнює 1, то motorLimit отримує значення 155, а якщо ні, то отримує значення 255
     okButton.tick();
   }
 }
@@ -291,7 +273,7 @@ void SettingsRemotecontrol(void) {
           break;
       }
     }
-    remoteControlData[2] = constrain(remoteControlData[2], 0, 190);
+    remoteControlData[2] = constrain(remoteControlData[2], 0, 190);//обмежуєм налаштування
     okButton.tick();
   }
 }
