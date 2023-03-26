@@ -61,7 +61,7 @@ void returnHome() {
 }
 
 void SpeedMotor() {
-  const int interval = 200; // інтервал в мілісекундах
+  const int interval = 100; // інтервал в мілісекундах
   static uint32_t previousMillis;
   uint32_t currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {

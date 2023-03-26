@@ -1,5 +1,5 @@
 /*
-Скетч використовує 21190 байтів (68%) місця зберігання для програм. Межа 30720 байтів.
+Скетч використовує 20714 байтів (67%) місця зберігання для програм. Межа 30720 байтів.
 Глобальні змінні використовують 994 байтів (48%) динамічної пам’яті,  залишаючи 1054 байтів для локальних змінних. Межа 2048 байтів.
 */
 
@@ -80,77 +80,19 @@ void loop() {
   }
   //debagStat();
   RTH();
-  switch (controlChannel[4]) {
-    case 1:
-      DISTANCE_LAT = eeprom_read_float(0);
-      DISTANCE_LNG = eeprom_read_float(4);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
+  for (int i = 0; i < 14; i++) {
+    byte lat_eeprom_address = i * 4;
+    byte lng_eeprom_address = lat_eeprom_address + 4;
+
+    if (controlChannel[4] == i + 1) {
+      DISTANCE_LAT = eeprom_read_float(lat_eeprom_address);
+      DISTANCE_LNG = eeprom_read_float(lng_eeprom_address);
+      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG);
       gpsav();
-      break;
-    case 2:
-      eeprom_write_float(0, DISTANCE_LAT_BUFER);
-      eeprom_write_float(4, DISTANCE_LNG_BUFER);
-      break;
-    case 3:
-      DISTANCE_LAT = eeprom_read_float(8);
-      DISTANCE_LNG = eeprom_read_float(12);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 4:
-      eeprom_write_float(8, DISTANCE_LAT_BUFER);
-      eeprom_write_float(12, DISTANCE_LNG_BUFER);
-      break;
-    case 5:
-      DISTANCE_LAT = eeprom_read_float(16);
-      DISTANCE_LNG = eeprom_read_float(20);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 6:
-      eeprom_write_float(16, DISTANCE_LAT_BUFER);
-      eeprom_write_float(20, DISTANCE_LNG_BUFER);
-      break;
-    case 7:
-      DISTANCE_LAT = eeprom_read_float(24);
-      DISTANCE_LNG = eeprom_read_float(28);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 8:
-      eeprom_write_float(24, DISTANCE_LAT_BUFER);
-      eeprom_write_float(28, DISTANCE_LNG_BUFER);
-      break;
-    case 9:
-      DISTANCE_LAT = eeprom_read_float(32);
-      DISTANCE_LNG = eeprom_read_float(36);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 10:
-      eeprom_write_float(32, DISTANCE_LAT_BUFER);
-      eeprom_write_float(36, DISTANCE_LNG_BUFER);
-      break;
-    case 11:
-      DISTANCE_LAT = eeprom_read_float(40);
-      DISTANCE_LNG = eeprom_read_float(44);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 12:
-      eeprom_write_float(40, DISTANCE_LAT_BUFER);
-      eeprom_write_float(44, DISTANCE_LNG_BUFER);
-      break;
-    case 13:
-      DISTANCE_LAT = eeprom_read_float(48);
-      DISTANCE_LNG = eeprom_read_float(52);
-      dataTelem.ch[2] = distanceBetween(DISTANCE_LAT_BUFER, DISTANCE_LNG_BUFER, DISTANCE_LAT, DISTANCE_LNG); // Оновлюєм відстань
-      gpsav();
-      break;
-    case 14:
-      eeprom_write_float(48, DISTANCE_LAT_BUFER);
-      eeprom_write_float(52, DISTANCE_LNG_BUFER);
-      break;
+    } else if (controlChannel[4] == i + 2) {
+      eeprom_write_float(lat_eeprom_address, DISTANCE_LAT_BUFER);
+      eeprom_write_float(lng_eeprom_address, DISTANCE_LNG_BUFER);
+    }
   }
 }
 void voltmeter() {
