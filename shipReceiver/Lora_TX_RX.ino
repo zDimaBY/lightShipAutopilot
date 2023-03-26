@@ -19,10 +19,12 @@ void RTH() {
     timeoutBeginPacket = millis();
     unsigned int dt = millis() - lastCommunicationTime;
     if (dt >= communicationTimeout) {
-      motor.write(MIDDLE_PULSE_WIDTH);
-      servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-      servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
-      servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+      if (!whileLoop) { // Якщо whileLoop == false, дозволяємо RTH керувати катером
+        motor.write(MIDDLE_PULSE_WIDTH);
+        servo1.write(map(80, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+        servo2.write(map(180, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+        servo3.write(map(0, 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
+      }
     }
     if (dt >= returnTimeout) {
       DISTANCE_LAT = eeprom_read_float(0);
@@ -46,8 +48,13 @@ void onReceive(int packetSize) {// Функція onReceive приймає па�
       servo2.write(map(controlChannel[2], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
       servo3.write(map(controlChannel[3], 0, 180, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH));
     }
+    turnLights();// перевірка чи потрібно вимкнення світла
     countLoraRead++; // Збільшуємо лічильник отриманих пакетів
   }
+}
+void turnLights(){
+  digitalWrite(A1, controlChannel[7] > 0 ? LOW : HIGH);
+  digitalWrite(A2, controlChannel[8] > 0 ? LOW : HIGH);
 }
 //ФУНКЦІЯ CRC шифрування ________________________________
 byte crc16_asm(byte * buffer, byte size) {

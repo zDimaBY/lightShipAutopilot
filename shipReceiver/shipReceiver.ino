@@ -1,5 +1,5 @@
 /*
-Скетч використовує 21174 байтів (68%) місця зберігання для програм. Межа 30720 байтів.
+Скетч використовує 21190 байтів (68%) місця зберігання для програм. Межа 30720 байтів.
 Глобальні змінні використовують 994 байтів (48%) динамічної пам’яті,  залишаючи 1054 байтів для локальних змінних. Межа 2048 байтів.
 */
 
@@ -43,7 +43,7 @@ struct RX_DATA {
   int ch[10];
   byte CRC;
 } dataTelem;
-byte controlChannel[16];// Канали керування 
+byte controlChannel[16];// Канали керування
 
 void setup() {
   Serial.begin(115200); //відкриваємо порт для зв'язку з ПК
@@ -152,10 +152,7 @@ void loop() {
       eeprom_write_float(52, DISTANCE_LNG_BUFER);
       break;
   }
-  digitalWrite(A1, controlChannel[7] > 0 ? LOW : HIGH);
-  digitalWrite(A2, controlChannel[8] > 0 ? LOW : HIGH);
 }
-
 void voltmeter() {
   float voltage = (analogRead(A0) * 5.0) / 1024.0 / (r2 / (r1 + r2));
   dataTelem.ch[0] = voltage;

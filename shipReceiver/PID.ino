@@ -1,5 +1,5 @@
 // PID constants
-const int Kp = 80;
+const int Kp = 100;
 const float Ki = 0.2;
 const int Kd = 800;
 
